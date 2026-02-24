@@ -174,7 +174,7 @@ function highlightCode(code) {
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
-  escaped = escaped.replace(/___/g, '<span class="code-blank">___</span>')
+  escaped = escaped.replace(/___/g, '<span class="code-blank">?</span>')
   escaped = escaped.replace(/(&quot;|")(.*?)(\1)/g, '<span class="code-string">"$2"</span>')
   keywords.forEach(kw => {
     escaped = escaped.replace(new RegExp('\\b' + kw + '\\b', 'g'), '<span class="code-keyword">' + kw + '</span>')
