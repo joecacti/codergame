@@ -17,6 +17,7 @@ const selected = ref(null)
 const feedback = ref('')
 const obstacles = ref(shuffle([...OBSTACLES]).slice(0, 5))
 const crashState = ref(0)
+const explanation = ref('')
 const confettiList = ref([])
 const msg = ref('Smooth sailing, Captain ' + props.initials + '! Keep your eyes on the horizon...')
 let confettiId = 0
@@ -49,9 +50,9 @@ function handleAnswer(idx) {
   if (selected.value !== null) return
   selected.value = idx
   if (idx === currentObs.value.correct) {
-    const dir = currentObs.value.pos === 'left' ? 'right' : 'left'
-    feedback.value = '✅ Correct! Steering ' + dir + '!'
-    msg.value = 'Nice dodge, Captain! 🎉'
+    feedback.value = '✅ Correct!'
+    explanation.value = currentObs.value.explanation || ''
+    msg.value = 'Nice coding, Captain! 🎉'
     phase.value = 'dodging'
     shipX.value = currentObs.value.pos === 'left' ? Math.min(85, shipX.value + 15) : Math.max(15, shipX.value - 15)
     fireConfetti(50, 30)
@@ -59,6 +60,7 @@ function handleAnswer(idx) {
       const newScore = score.value + 1
       score.value = newScore
       shipX.value = 50
+      explanation.value = ''
       if (newScore >= 5) {
         phase.value = 'win'
         msg.value = "5 POINTS! You've mastered IF/ELSE, Captain " + props.initials + '! 🏆'
@@ -67,9 +69,10 @@ function handleAnswer(idx) {
         phase.value = 'sailing'
         msg.value = "Smooth sailing... what's next? (" + newScore + '/5)'
       }
-    }, 1500)
+    }, 2500)
   } else {
-    feedback.value = '❌ Wrong! That sends us straight into the ' + currentObs.value.name + '!'
+    feedback.value = '❌ Not quite!'
+    explanation.value = currentObs.value.explanation || ''
     msg.value = 'BRACE FOR IMPACT! 💥'
     phase.value = 'crash'
     crashState.value = 1
@@ -77,11 +80,31 @@ function handleAnswer(idx) {
     setTimeout(() => { crashState.value = 3 }, 1600)
     setTimeout(() => {
       crashState.value = 0
+      explanation.value = ''
       phase.value = 'sailing'
       msg.value = 'Ship repaired! Let\'s try again... (' + score.value + '/5)'
       obstacleIdx.value++
-    }, 3500)
+    }, 4500)
   }
+}
+
+function highlightCode(code) {
+  const keywords = ['let', 'if', 'else', 'true', 'false']
+  let escaped = code
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+  // Highlight the blank
+  escaped = escaped.replace(/___/g, '<span class="code-blank">___</span>')
+  // Highlight strings
+  escaped = escaped.replace(/(&quot;|")(.*?)(\1)/g, '<span class="code-string">"$2"</span>')
+  // Highlight keywords
+  keywords.forEach(kw => {
+    escaped = escaped.replace(new RegExp('\\b' + kw + '\\b', 'g'), '<span class="code-keyword">' + kw + '</span>')
+  })
+  // Highlight numbers
+  escaped = escaped.replace(/\b(\d+)\b/g, '<span class="code-number">$1</span>')
+  return escaped
 }
 
 const obsY = computed(() => phase.value === 'challenge' ? 30 : phase.value === 'dodging' ? -10 : 15)
@@ -165,7 +188,7 @@ const obsXPos = computed(() => currentObs.value.pos === 'left' ? 25 : 75)
     <!-- Code challenge -->
     <div v-if="phase === 'challenge'" class="challenge-panel">
       <div class="challenge-title">⚠️ {{ currentObs.emoji }} {{ currentObs.name }} ahead! Complete the code:</div>
-      <pre class="challenge-code">{{ currentObs.code }}</pre>
+      <pre class="challenge-code" v-html="highlightCode(currentObs.code)"></pre>
       <div class="options">
         <button
           v-for="(opt, i) in currentObs.options" :key="i"
@@ -181,6 +204,7 @@ const obsXPos = computed(() => currentObs.value.pos === 'left' ? 25 : 75)
         >{{ opt }}</button>
       </div>
       <div v-if="feedback" class="feedback" :class="{ 'fb-correct': selected === currentObs.correct, 'fb-wrong': selected !== currentObs.correct }">{{ feedback }}</div>
+      <div v-if="explanation" class="explanation">{{ explanation }}</div>
     </div>
 
     <!-- Win state -->
@@ -313,6 +337,17 @@ const obsXPos = computed(() => currentObs.value.pos === 'left' ? 25 : 75)
   margin: 0 0 12px;
   white-space: pre-wrap;
 }
+.challenge-code :deep(.code-blank) {
+  background: rgba(251,191,36,.25);
+  color: #fbbf24;
+  padding: 1px 6px;
+  border-radius: 4px;
+  border: 1px dashed #fbbf24;
+  font-weight: 700;
+}
+.challenge-code :deep(.code-keyword) { color: #c084fc; }
+.challenge-code :deep(.code-string) { color: #86efac; }
+.challenge-code :deep(.code-number) { color: #fdba74; }
 .options { display: flex; gap: 8px; }
 .option-btn {
   flex: 1;
@@ -339,6 +374,17 @@ const obsXPos = computed(() => currentObs.value.pos === 'left' ? 25 : 75)
 .feedback { margin-top: 10px; font-size: 13px; font-weight: 600; }
 .fb-correct { color: #22c55e; }
 .fb-wrong { color: #ef4444; }
+.explanation {
+  margin-top: 8px;
+  padding: 10px 12px;
+  background: rgba(251,191,36,.08);
+  border: 1px solid rgba(251,191,36,.2);
+  border-radius: 6px;
+  font-size: 12px;
+  color: #fbbf24;
+  line-height: 1.5;
+  font-style: italic;
+}
 
 .win-panel {
   margin: 12px 16px;

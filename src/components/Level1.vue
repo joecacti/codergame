@@ -1,13 +1,91 @@
 <script setup>
 import { ref, computed } from 'vue'
-import { CORRECT, DISTRACTORS, SLOTS, SLOT_LABELS, FUNNY_MESSAGES, GOOD_MESSAGES, shuffle } from '../data/codeBlocks.js'
+import { CORRECT, DISTRACTORS, SLOTS, SLOT_LABELS, FUNNY_MESSAGES, GOOD_MESSAGES, WRONG_EXPLANATIONS, HINTS, CODE_BREAKDOWNS, shuffle } from '../data/codeBlocks.js'
 import Confetti from './Confetti.vue'
 import ShipVisual from './ShipVisual.vue'
+import CodeExplainer from './CodeExplainer.vue'
+import VariableWatch from './VariableWatch.vue'
+import ConceptCard from './ConceptCard.vue'
+import HintButton from './HintButton.vue'
+import { useSound } from '../composables/useSound.js'
+import { useProgress } from '../composables/useProgress.js'
 
 const props = defineProps({
   initials: { type: String, required: true },
 })
 const emit = defineEmits(['complete', 'admin'])
+
+const { click: sClick, correct: sCorrect, wrong: sWrong, drop: sDrop, badge: sBadge, splash: sSplash, launch: sLaunch, muted, toggleMute } = useSound()
+const { xp, rank, xpProgress, floats, awardCorrectDrop, awardFirstTry, awardLevelComplete, spendHint } = useProgress()
+
+// Tutorial state
+const tutorialStep = ref(0)
+const tutorialActive = ref(true)
+
+const TUTORIAL_STEPS = [
+  {
+    title: "Welcome aboard, Captain!",
+    text: "Before we build your ship, let's learn about VARIABLES \u2014 the building blocks of code!",
+    icon: "\u{1F3F4}\u200D\u2620\uFE0F",
+    highlight: null,
+  },
+  {
+    title: "What's a Variable?",
+    text: "A variable is like a labeled treasure chest. You give it a NAME and put a VALUE inside.\n\nFor example: let hull = \"oak\" creates a chest labeled \"hull\" with \"oak\" inside!",
+    icon: "\u{1F4E6}",
+    highlight: null,
+  },
+  {
+    title: "Different Types of Treasure",
+    text: "Variables can hold different types of values:\n\n\u2022 Text (strings): \"oak\" \u2014 always in quotes\n\u2022 Numbers: 3, 12 \u2014 no quotes needed\n\u2022 True/False (booleans): true or false",
+    icon: "\u{1F48E}",
+    highlight: null,
+  },
+  {
+    title: "The Code Toolbox",
+    text: "Over here you'll find code blocks \u2014 some are correct and some are WRONG! Drag the right ones to build your ship.",
+    icon: "\u2699\uFE0F",
+    highlight: "toolbox",
+  },
+  {
+    title: "The Ship Parts",
+    text: "Drop each code block into its matching ship part. Look at the variable NAME to figure out where it goes \u2014 \"hull\" goes in Hull, \"sails\" goes in Sails, etc.",
+    icon: "\u{1F527}",
+    highlight: "dropzones",
+  },
+  {
+    title: "Watch Out for Bad Code!",
+    text: "Some blocks have silly values that won't work \u2014 like a hull of 0 or fish for sails! Pick the values that make sense for a real ship.",
+    icon: "\u{1F988}",
+    highlight: null,
+  },
+  {
+    title: "Ready to Build!",
+    text: "Drag the correct code blocks into each ship part, then hit Launch! If the code is wrong... the ship sinks! Good luck, Captain!",
+    icon: "\u26F5",
+    highlight: null,
+  },
+]
+
+function nextTutorialStep() {
+  sClick()
+  if (tutorialStep.value < TUTORIAL_STEPS.length - 1) {
+    tutorialStep.value++
+  } else {
+    tutorialActive.value = false
+  }
+}
+
+function prevTutorialStep() {
+  sClick()
+  if (tutorialStep.value > 0) tutorialStep.value--
+}
+
+function skipTutorial() {
+  tutorialActive.value = false
+}
+
+const currentTutorial = computed(() => TUTORIAL_STEPS[tutorialStep.value])
 
 const allBlocks = ref(shuffle([...Object.values(CORRECT), ...DISTRACTORS]))
 const toolbox = ref([...allBlocks.value])
@@ -20,6 +98,9 @@ const miniSink = ref(0)
 const successState = ref(false)
 const msg = ref("Ahoy! I've fallen in the water! Build me a ship, quick!")
 const launched = ref(false)
+const showConceptCard = ref(false)
+const lastPlacedSlot = ref(null)
+const firstTrySlots = ref({ hull: true, sails: true, crew: true, anchor: true })
 let confettiId = 0
 
 const built = computed(() => ({
@@ -32,9 +113,29 @@ const built = computed(() => ({
 const filledCount = computed(() => Object.values(slots.value).filter(Boolean).length)
 const activeFailState = computed(() => launched.value ? failState.value : miniSink.value)
 
-function fireConfetti(cx, cy) {
+// CodeExplainer: show breakdown for last placed slot
+const activeBreakdown = computed(() => {
+  if (!lastPlacedSlot.value) return []
+  const bd = CODE_BREAKDOWNS[lastPlacedSlot.value]
+  return bd ? bd.parts : []
+})
+
+// HintButton: current slot needing hint (first empty slot)
+const hintSlot = computed(() => {
+  for (const s of SLOTS) {
+    if (!slots.value[s]) return s
+  }
+  return null
+})
+
+const currentHints = computed(() => {
+  if (!hintSlot.value) return []
+  return HINTS[hintSlot.value] || []
+})
+
+function fireConfetti(cx, cy, variant = 'confetti') {
   const id = ++confettiId
-  confettiList.value.push({ id, x: cx, y: cy })
+  confettiList.value.push({ id, x: cx, y: cy, variant })
   setTimeout(() => { confettiList.value = confettiList.value.filter(c => c.id !== id) }, 2500)
 }
 
@@ -60,26 +161,39 @@ function handleDrop(slot) {
   slots.value[slot] = block
   toolbox.value = toolbox.value.filter(b => b !== block)
   dragging.value = null
+  lastPlacedSlot.value = slot
+  sDrop()
 
   if (block === CORRECT[slot]) {
     msg.value = GOOD_MESSAGES[slot]
-    fireConfetti(50, 40)
+    sCorrect()
+    awardCorrectDrop()
+    if (firstTrySlots.value[slot]) {
+      awardFirstTry()
+      fireConfetti(50, 40, 'sparkle')
+    } else {
+      fireConfetti(50, 40)
+    }
   } else {
-    msg.value = FUNNY_MESSAGES[slot]
+    msg.value = WRONG_EXPLANATIONS[slot] || FUNNY_MESSAGES[slot]
+    sWrong()
     wrongSlot.value = slot
+    firstTrySlots.value[slot] = false
     const hasShip = Object.values(slots.value).some((v, i) => v !== null && v !== block) || built.value.hull
     if (hasShip) {
+      sSplash()
       miniSink.value = 1
-      setTimeout(() => { miniSink.value = 2; msg.value = "She's cracking apart! 💥" }, 1000)
-      setTimeout(() => { miniSink.value = 3; msg.value = "She's going down! 🫧" }, 2000)
-      setTimeout(() => { miniSink.value = 4; msg.value = "Captain overboard! SWIM! 🏊" }, 3000)
-      setTimeout(() => { miniSink.value = 5; msg.value = "Is that a... FIN?! 😱" }, 4200)
-      setTimeout(() => { miniSink.value = 6; msg.value = "CHOMP! 🦈 Bad code sinks ships!" }, 5400)
+      setTimeout(() => { miniSink.value = 2; msg.value = "She's cracking apart! \u{1F4A5}" }, 1000)
+      setTimeout(() => { miniSink.value = 3; msg.value = "She's going down! \u{1FAE7}" }, 2000)
+      setTimeout(() => { miniSink.value = 4; msg.value = "Captain overboard! SWIM! \u{1F3CA}" }, 3000)
+      setTimeout(() => { miniSink.value = 5; msg.value = "Is that a... FIN?! \u{1F631}" }, 4200)
+      setTimeout(() => { miniSink.value = 6; msg.value = "CHOMP! \u{1F988} Bad code sinks ships!" }, 5400)
       setTimeout(() => {
         slots.value = { hull: null, sails: null, crew: null, anchor: null }
         const a = shuffle([...Object.values(CORRECT), ...DISTRACTORS])
         toolbox.value = a; allBlocks.value = a
         wrongSlot.value = null; miniSink.value = 0
+        lastPlacedSlot.value = null
         msg.value = 'Back to square one... try again, ' + props.initials + '!'
       }, 7000)
     } else {
@@ -103,18 +217,26 @@ function handleRemove(slot) {
 function handleLaunch() {
   if (filledCount.value < 4) { msg.value = 'Need all 4 parts!'; return }
   launched.value = true
+  sLaunch()
   if (Object.entries(slots.value).every(([k, v]) => v === CORRECT[k])) {
-    msg.value = "ALL CANNONS FIRE! 🎉 She's perfect, Captain " + props.initials + '!'
+    msg.value = "ALL CANNONS FIRE! \u{1F389} She's perfect, Captain " + props.initials + '!'
     successState.value = true
-    fireConfetti(25, 30); fireConfetti(50, 20); fireConfetti(75, 30)
+    sCorrect()
+    sBadge()
+    awardLevelComplete()
+    fireConfetti(25, 30, 'golden-burst')
+    fireConfetti(50, 20, 'golden-burst')
+    fireConfetti(75, 30, 'golden-burst')
+    setTimeout(() => { showConceptCard.value = true }, 1500)
   } else {
-    msg.value = 'Uh oh... 😰'
+    msg.value = 'Uh oh... \u{1F630}'
+    sWrong()
     failState.value = 1
-    setTimeout(() => { failState.value = 2; msg.value = 'CRACK! 💥' }, 1200)
-    setTimeout(() => { failState.value = 3; msg.value = 'SINKING! 🫧' }, 2400)
-    setTimeout(() => { failState.value = 4; msg.value = 'Captain overboard! 🏊' }, 3600)
-    setTimeout(() => { failState.value = 5; msg.value = 'Is that a FIN?! 😱' }, 5000)
-    setTimeout(() => { failState.value = 6; msg.value = "CHOMP! 🦈 Let's see what went wrong..." }, 6500)
+    setTimeout(() => { failState.value = 2; msg.value = 'CRACK! \u{1F4A5}' }, 1200)
+    setTimeout(() => { failState.value = 3; msg.value = 'SINKING! \u{1FAE7}' }, 2400)
+    setTimeout(() => { failState.value = 4; msg.value = 'Captain overboard! \u{1F3CA}' }, 3600)
+    setTimeout(() => { failState.value = 5; msg.value = 'Is that a FIN?! \u{1F631}' }, 5000)
+    setTimeout(() => { sSplash(); failState.value = 6; msg.value = "CHOMP! \u{1F988} Let's see what went wrong..." }, 6500)
   }
 }
 
@@ -125,8 +247,14 @@ function handleReset() {
   dragging.value = null; wrongSlot.value = null
   failState.value = 0; miniSink.value = 0
   successState.value = false; launched.value = false
-  confettiList.value = []
+  confettiList.value = []; lastPlacedSlot.value = null
+  showConceptCard.value = false
   msg.value = 'Back in the water... BUILD FASTER, ' + props.initials + '!'
+}
+
+function handleHint() {
+  spendHint()
+  sClick()
 }
 
 const wrongEntries = computed(() => {
@@ -137,14 +265,65 @@ const wrongEntries = computed(() => {
 
 <template>
   <div class="level1">
+    <!-- ConceptCard overlay -->
+    <ConceptCard v-if="showConceptCard" :level="1" :initials="initials" @dismiss="showConceptCard = false" />
+
+    <!-- Tutorial Overlay -->
+    <div v-if="tutorialActive" class="tutorial-overlay">
+      <div class="tutorial-card">
+        <button class="tutorial-skip" @click="skipTutorial">Skip Tutorial \u2192</button>
+        <div class="tutorial-icon">{{ currentTutorial.icon }}</div>
+        <div class="tutorial-title">{{ currentTutorial.title }}</div>
+        <div class="tutorial-text">{{ currentTutorial.text }}</div>
+        <div class="tutorial-dots">
+          <span
+            v-for="(_, i) in TUTORIAL_STEPS"
+            :key="i"
+            class="tutorial-dot"
+            :class="{ active: i === tutorialStep, done: i < tutorialStep }"
+          />
+        </div>
+        <div class="tutorial-buttons">
+          <button v-if="tutorialStep > 0" class="tutorial-btn tutorial-btn-back" @click="prevTutorialStep">\u2190 Back</button>
+          <button class="tutorial-btn tutorial-btn-next" @click="nextTutorialStep">
+            {{ tutorialStep === TUTORIAL_STEPS.length - 1 ? "Let's Go! \u26F5" : 'Next \u2192' }}
+          </button>
+        </div>
+      </div>
+
+      <!-- Highlight arrows for toolbox/dropzones steps -->
+      <div v-if="currentTutorial.highlight === 'toolbox'" class="tutorial-highlight tutorial-highlight-left">
+        <div class="tutorial-arrow">\u{1F448} Over here!</div>
+      </div>
+      <div v-if="currentTutorial.highlight === 'dropzones'" class="tutorial-highlight tutorial-highlight-right">
+        <div class="tutorial-arrow">Over here! \u{1F449}</div>
+      </div>
+    </div>
+
     <!-- Header -->
     <div class="header">
-      <div class="header-title">🏴‍☠️ Pirates of the Coderbbean</div>
+      <div class="header-title">\u{1F3F4}\u200D\u2620\uFE0F Pirates of the Coderbbean</div>
       <div class="header-right">
+        <span class="rank-badge">{{ rank.emoji }} {{ rank.title }}</span>
+        <button class="mute-btn" @click="toggleMute" :title="muted ? 'Unmute' : 'Mute'">{{ muted ? '\u{1F507}' : '\u{1F50A}' }}</button>
         <span class="header-info">Captain <b class="gold">{{ initials }}</b></span>
         <span class="header-sep">|</span>
         <span class="header-info">Level 1: Build Your Ship</span>
       </div>
+    </div>
+
+    <!-- XP Bar -->
+    <div class="xp-bar">
+      <span class="xp-label">XP:</span>
+      <div class="xp-track">
+        <div class="xp-fill" :style="{ width: xpProgress + '%' }" />
+      </div>
+      <span class="xp-count">{{ xp }} XP</span>
+    </div>
+
+    <!-- XP Floats -->
+    <div class="xp-floats">
+      <div v-for="f in floats" :key="f.id" class="xp-float">{{ f.label }}</div>
     </div>
 
     <!-- Progress -->
@@ -157,13 +336,22 @@ const wrongEntries = computed(() => {
     </div>
 
     <!-- Captain message -->
-    <div class="captain-msg">🧑‍✈️ "{{ msg }}"</div>
+    <div class="captain-msg">\u{1F9D1}\u200D\u2708\uFE0F "{{ msg }}"</div>
+
+    <!-- Variable Watch -->
+    <VariableWatch :slots="slots" :correct="CORRECT" />
+
+    <!-- Code Explainer -->
+    <CodeExplainer :parts="activeBreakdown" :visible="!!lastPlacedSlot" />
+
+    <!-- Hint Button -->
+    <HintButton :hints="currentHints" :xp="xp" @use-hint="handleHint" />
 
     <!-- 3-column layout -->
     <div class="game-columns">
       <!-- Toolbox -->
       <div class="toolbox">
-        <div class="column-label">⚙️ Code Toolbox — Drag →</div>
+        <div class="column-label">\u2699\uFE0F Code Toolbox \u2014 Drag \u2192</div>
         <div
           v-for="(block, i) in toolbox"
           :key="block + i"
@@ -173,20 +361,20 @@ const wrongEntries = computed(() => {
           @dragstart="onDragStart(block)"
           @dragend="onDragEnd"
         >
-          <span class="grip">⠿</span>{{ block }}
+          <span class="grip">\u2807</span>{{ block }}
         </div>
         <div v-if="toolbox.length === 0" class="empty-toolbox">All blocks placed!</div>
       </div>
 
       <!-- Ship visual -->
       <div class="ship-area">
-        <Confetti v-for="c in confettiList" :key="c.id" :x="c.x" :y="c.y" :count="40" />
+        <Confetti v-for="c in confettiList" :key="c.id" :x="c.x" :y="c.y" :count="40" :variant="c.variant || 'confetti'" />
         <ShipVisual :built="built" :fail-state="activeFailState" :success-state="successState" :initials="initials" />
       </div>
 
       <!-- Drop zones -->
       <div class="drop-zones">
-        <div class="column-label">🔧 Ship Parts — Drop here</div>
+        <div class="column-label">\u{1F527} Ship Parts \u2014 Drop here</div>
         <div
           v-for="slot in SLOTS"
           :key="slot"
@@ -204,7 +392,7 @@ const wrongEntries = computed(() => {
           <div class="slot-label">{{ SLOT_LABELS[slot] }}</div>
           <div v-if="slots[slot]" class="slot-filled">
             <span>{{ slots[slot] }}</span>
-            <span v-if="!launched && !miniSink" class="remove-x">✕</span>
+            <span v-if="!launched && !miniSink" class="remove-x">\u2715</span>
           </div>
           <div v-else class="slot-empty">[ drop {{ slot }} code ]</div>
         </div>
@@ -212,7 +400,7 @@ const wrongEntries = computed(() => {
         <div class="concepts-section">
           <div class="column-label">Concepts</div>
           <div class="concept-badge" :class="{ unlocked: successState }">
-            {{ successState ? '✅' : '🔒' }} Variables
+            {{ successState ? '\u2705' : '\u{1F512}' }} Variables
           </div>
         </div>
       </div>
@@ -220,26 +408,26 @@ const wrongEntries = computed(() => {
 
     <!-- Wrong entries explanation -->
     <div v-if="failState === 6 && wrongEntries.length > 0" class="wrong-panel">
-      <div class="wrong-title">🧑‍✈️ "Here's what went wrong..."</div>
+      <div class="wrong-title">\u{1F9D1}\u200D\u2708\uFE0F "Here's what went wrong..."</div>
       <div v-for="[slot, val] in wrongEntries" :key="slot" class="wrong-entry">
-        <div class="wrong-line"><span class="x-mark">✗</span><code class="wrong-code">{{ val }}</code><span class="hint">← wrong!</span></div>
-        <div class="wrong-line correct-line"><span class="check-mark">✓</span><code class="correct-code">{{ CORRECT[slot] }}</code><span class="hint">← try this!</span></div>
+        <div class="wrong-line"><span class="x-mark">\u2717</span><code class="wrong-code">{{ val }}</code><span class="hint">{{ WRONG_EXPLANATIONS[slot] || '\u2190 wrong!' }}</span></div>
+        <div class="wrong-line correct-line"><span class="check-mark">\u2713</span><code class="correct-code">{{ CORRECT[slot] }}</code><span class="hint">\u2190 try this!</span></div>
       </div>
     </div>
 
     <!-- Success banner -->
-    <div v-if="successState" class="success-panel">
-      <div class="success-emoji">🎉</div>
+    <div v-if="successState && !showConceptCard" class="success-panel">
+      <div class="success-emoji">\u{1F389}</div>
       <div class="success-title">Variables Unlocked!</div>
       <div class="success-sub">Captain {{ initials }}, you used variables to build a ship!</div>
     </div>
 
     <!-- Action buttons -->
     <div class="actions">
-      <button v-if="!launched && !miniSink" @click="handleLaunch" class="launch-btn" :class="{ ready: filledCount === 4 }">⛵ Launch Ship!</button>
+      <button v-if="!launched && !miniSink" @click="handleLaunch" class="launch-btn" :class="{ ready: filledCount === 4 }">\u26F5 Launch Ship!</button>
       <template v-if="launched">
-        <button @click="handleReset" class="reset-btn">🔄 Try Again</button>
-        <button v-if="successState" @click="$emit('complete')" class="next-btn">⛵ Set Sail → Level 2</button>
+        <button @click="handleReset" class="reset-btn">\u{1F504} Try Again</button>
+        <button v-if="successState" @click="$emit('complete')" class="next-btn">\u26F5 Set Sail \u2192 Level 2</button>
       </template>
     </div>
   </div>
@@ -266,7 +454,48 @@ const wrongEntries = computed(() => {
 .header-sep { font-size: 12px; color: #555; }
 .gold { color: #fbbf24; }
 
-.progress-bar { padding: 8px 16px; display: flex; align-items: center; gap: 8px; }
+.rank-badge {
+  font-size: 11px;
+  background: rgba(251,191,36,.1);
+  border: 1px solid rgba(251,191,36,.25);
+  border-radius: 4px;
+  padding: 2px 8px;
+  color: #fbbf24;
+}
+
+.mute-btn {
+  background: none;
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 14px;
+  cursor: pointer;
+  color: #888;
+  line-height: 1;
+}
+.mute-btn:hover { border-color: rgba(255,255,255,.25); }
+
+.xp-bar { padding: 4px 16px; display: flex; align-items: center; gap: 8px; }
+.xp-label { font-size: 10px; color: #888; text-transform: uppercase; letter-spacing: 1px; }
+.xp-track { flex: 1; height: 4px; background: rgba(255,255,255,.1); border-radius: 2px; overflow: hidden; }
+.xp-fill { height: 100%; background: linear-gradient(90deg, #a855f7, #ec4899); border-radius: 2px; transition: width .5s; }
+.xp-count { font-size: 11px; color: #a855f7; font-weight: 600; }
+
+.xp-floats { position: fixed; top: 60px; right: 20px; z-index: 200; pointer-events: none; }
+.xp-float {
+  color: #fbbf24;
+  font-size: 14px;
+  font-weight: 700;
+  font-family: Georgia, serif;
+  animation: floatUp 1.5s ease forwards;
+  margin-bottom: 4px;
+}
+@keyframes floatUp {
+  0% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-40px); }
+}
+
+.progress-bar { padding: 4px 16px; display: flex; align-items: center; gap: 8px; }
 .progress-label { font-size: 11px; color: #888; }
 .progress-track { flex: 1; height: 6px; background: rgba(255,255,255,.1); border-radius: 3px; overflow: hidden; }
 .progress-fill { height: 100%; background: #fbbf24; border-radius: 3px; transition: width .4s; }
@@ -274,7 +503,7 @@ const wrongEntries = computed(() => {
 .progress-count { font-size: 11px; color: #fbbf24; }
 
 .captain-msg {
-  margin: 0 16px 10px;
+  margin: 0 16px 6px;
   padding: 10px 14px;
   background: rgba(251,191,36,.1);
   border: 1px solid rgba(251,191,36,.2);
@@ -292,7 +521,7 @@ const wrongEntries = computed(() => {
   border-radius: 10px;
   overflow: hidden;
   border: 1px solid rgba(255,255,255,.1);
-  height: 520px;
+  height: 420px;
 }
 
 .toolbox {
@@ -448,5 +677,151 @@ const wrongEntries = computed(() => {
   40% { transform: translateX(4px); }
   60% { transform: translateX(-3px); }
   80% { transform: translateX(3px); }
+}
+
+/* Tutorial Overlay */
+.tutorial-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(0, 0, 0, .75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: tutorialFadeIn .4s ease;
+}
+
+@keyframes tutorialFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.tutorial-card {
+  position: relative;
+  background: linear-gradient(135deg, #1a2a4a 0%, #0f1d35 100%);
+  border: 2px solid rgba(251, 191, 36, .4);
+  border-radius: 16px;
+  padding: 32px 36px 28px;
+  max-width: 460px;
+  width: 90%;
+  text-align: center;
+  box-shadow: 0 0 40px rgba(251, 191, 36, .15), 0 20px 60px rgba(0, 0, 0, .5);
+  animation: tutorialCardIn .4s ease;
+}
+
+@keyframes tutorialCardIn {
+  from { opacity: 0; transform: scale(.9) translateY(20px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.tutorial-skip {
+  position: absolute;
+  top: 12px;
+  right: 16px;
+  background: none;
+  border: none;
+  color: #888;
+  font-size: 11px;
+  cursor: pointer;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  transition: color .2s;
+}
+.tutorial-skip:hover { color: #fbbf24; }
+
+.tutorial-icon { font-size: 42px; margin-bottom: 12px; }
+
+.tutorial-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #fbbf24;
+  font-family: Georgia, serif;
+  margin-bottom: 12px;
+}
+
+.tutorial-text {
+  font-size: 14px;
+  color: #e2e8f0;
+  line-height: 1.7;
+  white-space: pre-line;
+  margin-bottom: 20px;
+}
+
+.tutorial-dots {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.tutorial-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .15);
+  transition: all .3s;
+}
+.tutorial-dot.active {
+  background: #fbbf24;
+  box-shadow: 0 0 8px rgba(251, 191, 36, .5);
+  transform: scale(1.3);
+}
+.tutorial-dot.done { background: rgba(251, 191, 36, .4); }
+
+.tutorial-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+}
+
+.tutorial-btn {
+  padding: 10px 24px;
+  border-radius: 8px;
+  border: none;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: Georgia, serif;
+  transition: all .2s;
+}
+
+.tutorial-btn-back {
+  background: rgba(255, 255, 255, .08);
+  color: #e2e8f0;
+  border: 1px solid rgba(255, 255, 255, .15);
+}
+.tutorial-btn-back:hover { background: rgba(255, 255, 255, .12); }
+
+.tutorial-btn-next {
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  color: #0a1628;
+}
+.tutorial-btn-next:hover { filter: brightness(1.1); }
+
+.tutorial-highlight {
+  position: fixed;
+  top: 50%;
+  transform: translateY(-50%);
+  animation: tutorialBounce 1.2s ease-in-out infinite;
+}
+.tutorial-highlight-left { left: 24px; }
+.tutorial-highlight-right { right: 24px; }
+
+.tutorial-arrow {
+  font-size: 18px;
+  color: #fbbf24;
+  font-weight: 700;
+  text-shadow: 0 0 10px rgba(251, 191, 36, .5);
+}
+
+@keyframes tutorialBounce {
+  0%, 100% { transform: translateY(-50%) translateX(0); }
+  50% { transform: translateY(-50%) translateX(8px); }
+}
+.tutorial-highlight-left .tutorial-arrow {
+  animation: tutorialBounceLeft 1.2s ease-in-out infinite;
+}
+@keyframes tutorialBounceLeft {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(-8px); }
 }
 </style>
