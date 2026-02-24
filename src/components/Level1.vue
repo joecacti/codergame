@@ -364,83 +364,98 @@ const wrongEntries = computed(() => {
     <!-- Captain message -->
     <div class="captain-msg">🧑‍✈️ "{{ msg }}"</div>
 
-    <!-- Variable Watch -->
-    <VariableWatch :slots="slots" :correct="CORRECT" />
-
-    <!-- Code Explainer -->
-    <CodeExplainer :parts="activeBreakdown" :visible="!!lastPlacedSlot" />
-
-    <!-- Hint Button -->
-    <div class="hint-row"><img src="/images/pirate-kit/bottle.png" alt="" class="hint-bottle" /><HintButton :hints="currentHints" :xp="xp" @use-hint="handleHint" /></div>
-
-    <!-- Ship visual (compact, above interaction area) -->
-    <div class="ship-area">
-      <img src="/images/pirate-kit/barrel.png" alt="" class="deco-barrel-l1" />
-      <Confetti v-for="c in confettiList" :key="c.id" :x="c.x" :y="c.y" :count="40" :variant="c.variant || 'confetti'" />
-      <ShipVisual :built="built" :fail-state="activeFailState" :success-state="successState" :initials="initials" />
-    </div>
-
-    <!-- Step guide -->
-    <div class="step-guide">
-      <span class="step-num">1</span> Pick a code block
-      <span class="step-arrow">→</span>
-      <span class="step-num">2</span> Drag it to the matching part
-      <span class="step-arrow">→</span>
-      <span class="step-num">3</span> Launch when all 4 are filled!
-    </div>
-
-    <!-- 2-column layout: Toolbox + Drop Zones side by side -->
-    <div class="game-columns">
-      <!-- Toolbox -->
-      <div class="toolbox">
-        <div class="column-label">⚙️ Code Blocks</div>
-        <div
-          v-for="(block, i) in toolbox"
-          :key="block + i"
-          class="code-block"
-          :class="{ dragging: dragging === block, disabled: launched || miniSink }"
-          :draggable="!launched && !miniSink"
-          @dragstart="onDragStart(block)"
-          @dragend="onDragEnd"
-        >
-          <span class="grip">⠇</span>{{ block }}
+    <!-- Main game area: left (interaction) + right (ship) -->
+    <div class="game-layout">
+      <!-- LEFT: Code interaction -->
+      <div class="game-left">
+        <!-- Step guide -->
+        <div class="step-guide">
+          <span class="step-num">1</span> Pick a block
+          <span class="step-arrow">→</span>
+          <span class="step-num">2</span> Drop on part
+          <span class="step-arrow">→</span>
+          <span class="step-num">3</span> Launch!
         </div>
-        <div v-if="toolbox.length === 0" class="empty-toolbox">All blocks placed!</div>
-      </div>
 
-      <!-- Arrow divider -->
-      <div class="drag-arrow-col">
-        <div class="drag-arrow" :class="{ active: dragging }">drag<br/>→</div>
-      </div>
-
-      <!-- Drop zones -->
-      <div class="drop-zones">
-        <div class="column-label">🔧 Ship Parts — drop here</div>
-        <div
-          v-for="slot in SLOTS"
-          :key="slot"
-          class="drop-slot"
-          :class="{
-            filled: slots[slot],
-            correct: slots[slot] && slots[slot] === CORRECT[slot],
-            wrong: wrongSlot === slot,
-            'drag-hover': dragging && !slots[slot] && isSlotUnlocked(slot),
-            locked: !slots[slot] && !isSlotUnlocked(slot),
-          }"
-          @dragover="onDragOver($event, slot)"
-          @drop="handleDrop(slot)"
-          @click="handleRemove(slot)"
-        >
-          <div class="slot-label">{{ SLOT_LABELS[slot] }}</div>
-          <div v-if="slots[slot]" class="slot-filled">
-            <span>{{ slots[slot] }}</span>
-            <span v-if="!launched && !miniSink" class="remove-x">✕</span>
+        <!-- Toolbox + Drop Zones side by side -->
+        <div class="game-columns">
+          <!-- Toolbox -->
+          <div class="toolbox">
+            <div class="column-label">⚙️ Code Blocks</div>
+            <div
+              v-for="(block, i) in toolbox"
+              :key="block + i"
+              class="code-block"
+              :class="{ dragging: dragging === block, disabled: launched || miniSink }"
+              :draggable="!launched && !miniSink"
+              @dragstart="onDragStart(block)"
+              @dragend="onDragEnd"
+            >
+              <span class="grip">⠇</span>{{ block }}
+            </div>
+            <div v-if="toolbox.length === 0" class="empty-toolbox">All placed!</div>
           </div>
-          <div v-else class="slot-empty">{{ isSlotUnlocked(slot) ? `[ drop ${slot} code here ]` : `🔒 build ${SLOTS[SLOTS.indexOf(slot) - 1]} first` }}</div>
+
+          <!-- Arrow divider -->
+          <div class="drag-arrow-col">
+            <div class="drag-arrow" :class="{ active: dragging }">→</div>
+          </div>
+
+          <!-- Drop zones -->
+          <div class="drop-zones">
+            <div class="column-label">🔧 Drop here</div>
+            <div
+              v-for="slot in SLOTS"
+              :key="slot"
+              class="drop-slot"
+              :class="{
+                filled: slots[slot],
+                correct: slots[slot] && slots[slot] === CORRECT[slot],
+                wrong: wrongSlot === slot,
+                'drag-hover': dragging && !slots[slot] && isSlotUnlocked(slot),
+                locked: !slots[slot] && !isSlotUnlocked(slot),
+              }"
+              @dragover="onDragOver($event, slot)"
+              @drop="handleDrop(slot)"
+              @click="handleRemove(slot)"
+            >
+              <div class="slot-label">{{ SLOT_LABELS[slot] }}</div>
+              <div v-if="slots[slot]" class="slot-filled">
+                <span>{{ slots[slot] }}</span>
+                <span v-if="!launched && !miniSink" class="remove-x">✕</span>
+              </div>
+              <div v-else class="slot-empty">{{ isSlotUnlocked(slot) ? `[ ${slot} ]` : `🔒 ${SLOTS[SLOTS.indexOf(slot) - 1]} first` }}</div>
+            </div>
+          </div>
         </div>
 
+        <!-- Hint + Launch row -->
+        <div class="action-row">
+          <div class="hint-row"><img src="/images/pirate-kit/bottle.png" alt="" class="hint-bottle" /><HintButton :hints="currentHints" :xp="xp" @use-hint="handleHint" /></div>
+          <button v-if="!launched && !miniSink" @click="handleLaunch" class="launch-btn" :class="{ ready: filledCount === 4 }">⛵ Launch Ship!</button>
+          <template v-if="launched">
+            <button @click="handleReset" class="reset-btn">🔄 Try Again</button>
+            <button v-if="successState" @click="$emit('complete')" class="next-btn">⛵ Level 2 →</button>
+          </template>
+        </div>
+      </div>
+
+      <!-- RIGHT: Ship + info panels -->
+      <div class="game-right">
+        <div class="ship-area">
+          <img src="/images/pirate-kit/barrel.png" alt="" class="deco-barrel-l1" />
+          <Confetti v-for="c in confettiList" :key="c.id" :x="c.x" :y="c.y" :count="40" :variant="c.variant || 'confetti'" />
+          <ShipVisual :built="built" :fail-state="activeFailState" :success-state="successState" :initials="initials" />
+        </div>
+
+        <!-- Variable Watch -->
+        <VariableWatch :slots="slots" :correct="CORRECT" />
+
+        <!-- Code Explainer (collapsible, only after first placement) -->
+        <CodeExplainer :parts="activeBreakdown" :visible="!!lastPlacedSlot" />
+
+        <!-- Concepts badge -->
         <div class="concepts-section">
-          <div class="column-label">Concepts</div>
           <div class="concept-badge" :class="{ unlocked: successState }">
             {{ successState ? '✅' : '🔒' }} Variables
           </div>
@@ -464,14 +479,6 @@ const wrongEntries = computed(() => {
       <div class="success-sub">Captain {{ initials }}, you used variables to build a ship!</div>
     </div>
 
-    <!-- Action buttons -->
-    <div class="actions">
-      <button v-if="!launched && !miniSink" @click="handleLaunch" class="launch-btn" :class="{ ready: filledCount === 4 }">⛵ Launch Ship!</button>
-      <template v-if="launched">
-        <button @click="handleReset" class="reset-btn">🔄 Try Again</button>
-        <button v-if="successState" @click="$emit('complete')" class="next-btn">⛵ Set Sail → Level 2</button>
-      </template>
-    </div>
   </div>
 </template>
 
@@ -556,21 +563,41 @@ const wrongEntries = computed(() => {
   font-style: italic;
 }
 
-/* Ship area — compact, above the interaction columns */
+/* Two-column master layout */
+.game-layout {
+  display: flex;
+  gap: 12px;
+  padding: 0 16px;
+  min-height: 0;
+}
+.game-left {
+  flex: 3;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.game-right {
+  flex: 2;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Ship area — inside game-right */
 .ship-area {
-  margin: 0 16px 8px;
   border-radius: 10px;
   overflow: hidden;
   border: 1px solid rgba(255,255,255,.1);
-  height: 220px;
+  height: 200px;
   position: relative;
   background: rgba(0,0,0,.15);
 }
 
-/* Step guide */
+/* Step guide — inside game-left */
 .step-guide {
-  margin: 0 16px 8px;
-  padding: 8px 14px;
+  padding: 6px 12px;
   background: rgba(74,144,217,.08);
   border: 1px solid rgba(74,144,217,.2);
   border-radius: 8px;
@@ -599,11 +626,19 @@ const wrongEntries = computed(() => {
 .game-columns {
   display: flex;
   gap: 0;
-  margin: 0 16px;
   border-radius: 10px;
   overflow: hidden;
   border: 1px solid rgba(255,255,255,.1);
-  min-height: 280px;
+  flex: 1;
+  min-height: 0;
+}
+
+/* Action row inside game-left */
+.action-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .toolbox {
@@ -659,7 +694,7 @@ const wrongEntries = computed(() => {
 
 .label-icon { width: 18px; height: 18px; vertical-align: middle; margin-right: 4px; filter: drop-shadow(0 1px 2px rgba(0,0,0,.4)); }
 .btn-icon { width: 22px; height: 22px; vertical-align: middle; margin-right: 4px; filter: drop-shadow(0 1px 3px rgba(0,0,0,.4)); }
-.hint-row { display: flex; align-items: center; gap: 6px; padding: 0 16px; }
+.hint-row { display: flex; align-items: center; gap: 6px; }
 .hint-bottle { width: 28px; filter: drop-shadow(0 2px 4px rgba(0,0,0,.4)); opacity: .7; }
 .deco-barrel-l1 { position: absolute; bottom: 4px; right: 6px; width: 36px; opacity: .2; pointer-events: none; filter: drop-shadow(0 2px 6px rgba(0,0,0,.5)); z-index: 0; }
 .success-chest { width: 64px; filter: drop-shadow(0 4px 12px rgba(251,191,36,.3)); margin-bottom: 6px; }
@@ -735,7 +770,6 @@ const wrongEntries = computed(() => {
 .success-title { font-size: 15px; font-weight: 700; color: #22c55e; }
 .success-sub { font-size: 12px; color: #888; margin-top: 4px; }
 
-.actions { padding: 14px 16px; display: flex; justify-content: center; gap: 10px; }
 .launch-btn {
   padding: 10px 28px;
   border-radius: 8px;
