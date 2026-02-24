@@ -57,9 +57,12 @@ function barColor(pct) {
   <div class="admin">
     <!-- Header -->
     <div class="admin-header">
-      <div>
-        <div class="admin-title">🔑 Admin Dashboard</div>
-        <div class="admin-subtitle">Pirates of the Coderbbean — Class Progress</div>
+      <div class="admin-header-left">
+        <img src="/images/pirate-kit/flag-pirate-high.png" alt="" class="admin-flag" />
+        <div>
+          <div class="admin-title">🔑 Admin Dashboard</div>
+          <div class="admin-subtitle">Pirates of the Coderbbean — Class Progress</div>
+        </div>
       </div>
       <button @click="$emit('back')" class="back-btn">← Back</button>
     </div>
@@ -67,6 +70,7 @@ function barColor(pct) {
     <div class="admin-body">
       <!-- Stats cards -->
       <div class="stats-row">
+        <img src="/images/pirate-kit/tower-complete-large.png" alt="" class="stats-tower" />
         <div v-for="(s, i) in stats" :key="i" class="stat-card">
           <div class="stat-icon">{{ s.icon }}</div>
           <div class="stat-val">{{ s.val }}</div>
@@ -76,7 +80,7 @@ function barColor(pct) {
 
       <!-- Leaderboard -->
       <div class="leaderboard">
-        <div class="lb-header">🏆 Leaderboard</div>
+        <div class="lb-header"><img src="/images/pirate-kit/chest.png" alt="" class="lb-chest" /> Leaderboard</div>
         <div class="lb-columns">
           <span>Rank</span><span>Ship</span><span>Captain</span><span>Level</span><span>Badges</span><span>Time</span>
         </div>
@@ -87,12 +91,7 @@ function barColor(pct) {
         >
           <span class="lb-rank" :style="{ color: rankColor(i) }">{{ rankDisplay(i) }}</span>
           <span class="lb-ship">
-            <svg viewBox="0 0 40 24" width="44">
-              <polygon points="8,10 32,10 30,20 10,20" fill="#8B4513" stroke="#5C2E00" stroke-width=".3" />
-              <text x="20" y="17" text-anchor="middle" font-size="4" fill="#fbbf24" font-weight="bold" font-family="Georgia,serif">{{ p.initials }}</text>
-              <rect x="19" y="3" width="1" height="7" fill="#5C2E00" />
-              <polygon points="20,3 20,8 28,7" fill="#fff" stroke="#ddd" stroke-width=".2" />
-            </svg>
+            <img src="/images/pirate-kit/ship-pirate-small.png" alt="" class="lb-ship-img" />
           </span>
           <span class="lb-name">Captain {{ p.initials }}</span>
           <span class="lb-level">Level {{ p.level }}</span>
@@ -103,7 +102,7 @@ function barColor(pct) {
 
       <!-- Concept Mastery -->
       <div class="mastery">
-        <div class="mastery-title">📊 Concept Mastery</div>
+        <div class="mastery-title"><img src="/images/pirate-kit/cannon-ball.png" alt="" class="mastery-icon" /> Concept Mastery</div>
         <div v-for="c in concepts" :key="c.name" class="mastery-row">
           <div class="mastery-label">
             <span>{{ c.name }}</span>
@@ -215,4 +214,12 @@ function barColor(pct) {
 .mastery-pct { color: #888; }
 .mastery-track { height: 8px; background: rgba(255,255,255,.06); border-radius: 4px; overflow: hidden; }
 .mastery-fill { height: 100%; border-radius: 4px; }
+
+/* Pirate kit asset styles */
+.admin-header-left { display: flex; align-items: center; gap: 12px; }
+.admin-flag { width: 40px; filter: drop-shadow(0 2px 6px rgba(0,0,0,.4)); }
+.stats-tower { width: 40px; opacity: .25; filter: drop-shadow(0 2px 6px rgba(0,0,0,.4)); align-self: center; }
+.lb-chest { width: 24px; vertical-align: middle; margin-right: 6px; filter: drop-shadow(0 2px 4px rgba(0,0,0,.3)); }
+.lb-ship-img { width: 44px; filter: drop-shadow(0 2px 6px rgba(0,0,0,.4)); }
+.mastery-icon { width: 20px; vertical-align: middle; margin-right: 4px; filter: drop-shadow(0 1px 3px rgba(0,0,0,.3)); }
 </style>

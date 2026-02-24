@@ -17,7 +17,7 @@ onMounted(() => {
 const CONCEPTS = {
   1: {
     title: 'VARIABLES',
-    emoji: '\u{1F4E6}',
+    emoji: '📦',
     summary: 'A variable is a named box that holds a value.',
     details: [
       { label: 'String (Text)', example: '"oak"', color: '#4ade80' },
@@ -28,7 +28,7 @@ const CONCEPTS = {
   },
   2: {
     title: 'IF / ELSE',
-    emoji: '\u{1F500}',
+    emoji: '🔀',
     summary: 'Your code checked conditions and chose actions.',
     details: [
       { label: 'if (...)', example: 'Check a condition', color: '#60a5fa' },

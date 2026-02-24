@@ -40,7 +40,7 @@ function requestHint() {
       @click="requestHint"
       :title="allUsed ? 'No more hints' : !canAfford ? 'Need 5 XP' : 'Get a hint (-5 XP)'"
     >
-      {{ allUsed ? 'No more hints' : '\u{1F4A1} Hint (-5 XP)' }}
+      {{ allUsed ? 'No more hints' : '💡 Hint (-5 XP)' }}
     </button>
     <div v-if="showHint && currentHint" class="hint-text">
       <span class="hint-tier">Hint {{ hintLevel }}/{{ hints.length }}:</span>

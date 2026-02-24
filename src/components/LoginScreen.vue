@@ -1,7 +1,14 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
+import { useSound } from '../composables/useSound.js'
+import { useProgress } from '../composables/useProgress.js'
 
 const emit = defineEmits(['login', 'admin'])
+
+const { click: sClick, launch: sLaunch } = useSound()
+const { xp, rank } = useProgress()
+
+const hasProgress = computed(() => xp.value > 0)
 
 const val = ref('')
 const err = ref('')
@@ -16,28 +23,24 @@ function handleLogin() {
     err.value = 'Need at least 2 letters!'
     return
   }
+  sLaunch()
   emit('login', val.value)
 }
 </script>
 
 <template>
   <div class="login-screen">
-    <svg viewBox="0 0 200 60" class="login-banner">
-      <defs>
-        <linearGradient id="loginSea" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stop-color="#2980b9" />
-          <stop offset="100%" stop-color="#1a5276" />
-        </linearGradient>
-      </defs>
-      <rect y="25" width="200" height="35" fill="url(#loginSea)" rx="4" />
-      <path d="M0,27 Q20,23 40,27 Q60,31 80,27 Q100,23 120,27 Q140,31 160,27 Q180,23 200,27" fill="none" stroke="#fff" stroke-width=".8" opacity=".4" />
-      <text x="100" y="22" text-anchor="middle" font-size="18">🏴‍☠️</text>
-      <circle cx="85" cy="30" r="2" fill="#fff" opacity=".5" />
-      <circle cx="100" cy="32" r="2.5" fill="#fff" opacity=".4" />
-      <circle cx="115" cy="30" r="2" fill="#fff" opacity=".5" />
-    </svg>
+    <!-- Decorative background assets -->
+    <img src="/images/pirate-kit/palm-bend.png" alt="" class="deco deco-palm-left" />
+    <img src="/images/pirate-kit/palm-bend.png" alt="" class="deco deco-palm-right" />
+    <img src="/images/pirate-kit/barrel.png" alt="" class="deco deco-barrel" />
+    <img src="/images/pirate-kit/crate-bottles.png" alt="" class="deco deco-crate" />
+
+    <!-- Hero ship image -->
+    <img src="/images/pirate-kit/ship-pirate-large.png" alt="Pirate Ship" class="login-hero-ship" />
 
     <div class="login-card">
+      <img src="/images/pirate-kit/flag-pirate.png" alt="" class="login-flag" />
       <div class="login-title">🏴‍☠️ Pirates of the Coderbbean</div>
       <div class="login-subtitle">The First Byte</div>
       <div class="login-label">Enter your initials, Captain:</div>
@@ -51,6 +54,9 @@ function handleLogin() {
       />
       <div v-if="err" class="error-text">{{ err }}</div>
       <div class="input-hint">2–3 letters. These will appear on your ship!</div>
+      <div v-if="hasProgress" class="returning-rank">
+        Welcome back! {{ rank.emoji }} {{ rank.title }} — {{ xp }} XP
+      </div>
       <button
         @click="handleLogin"
         class="sail-btn"
@@ -63,20 +69,10 @@ function handleLogin() {
 
     <div v-if="val.length >= 2" class="ship-preview">
       <div class="preview-label">Your ship preview:</div>
-      <svg viewBox="0 0 100 50" class="preview-svg">
-        <defs>
-          <linearGradient id="prevSea" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="#2980b9" />
-            <stop offset="100%" stop-color="#1a5276" />
-          </linearGradient>
-        </defs>
-        <rect y="30" width="100" height="20" fill="url(#prevSea)" />
-        <polygon points="30,25 70,25 65,38 35,38" fill="#8B4513" stroke="#5C2E00" stroke-width=".5" />
-        <text x="50" y="34" text-anchor="middle" font-size="5" fill="#fbbf24" font-weight="bold" font-family="Georgia,serif">{{ val }}</text>
-        <rect x="48" y="8" width="2" height="17" fill="#5C2E00" />
-        <polygon points="50,8 50,20 68,17" fill="#fff" stroke="#ddd" stroke-width=".2" />
-        <path d="M0,32 Q15,29 30,32 Q45,35 60,32 Q75,29 90,32 Q95,33 100,32" fill="none" stroke="#fff" stroke-width=".5" opacity=".4" />
-      </svg>
+      <div class="preview-ship-wrap">
+        <img src="/images/pirate-kit/ship-pirate-medium.png" alt="Your ship" class="preview-ship-img" />
+        <div class="preview-initials">{{ val }}</div>
+      </div>
     </div>
   </div>
 </template>
@@ -91,15 +87,52 @@ function handleLogin() {
   background: linear-gradient(180deg, #0a1628 0%, #1a2a4a 50%, #0a1628 100%);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   color: #e2e8f0;
+  position: relative;
+  overflow: hidden;
 }
-.login-banner { width: 320px; margin-bottom: -10px; }
+
+/* Decorative background assets */
+.deco {
+  position: absolute;
+  pointer-events: none;
+  opacity: .25;
+  filter: drop-shadow(0 0 12px rgba(0,0,0,.5));
+  z-index: 0;
+}
+.deco-palm-left { left: -20px; bottom: 0; width: 140px; transform: scaleX(1); }
+.deco-palm-right { right: -20px; bottom: 0; width: 140px; transform: scaleX(-1); }
+.deco-barrel { left: 8%; bottom: 10%; width: 60px; opacity: .15; }
+.deco-crate { right: 8%; bottom: 8%; width: 70px; opacity: .15; }
+
+.login-hero-ship {
+  width: 180px;
+  margin-bottom: -20px;
+  filter: drop-shadow(0 8px 24px rgba(0,0,0,.6));
+  z-index: 1;
+  animation: shipBob 3s ease-in-out infinite;
+}
+@keyframes shipBob {
+  0%, 100% { transform: translateY(0) rotate(-1deg); }
+  50% { transform: translateY(-8px) rotate(1deg); }
+}
+
 .login-card {
+  position: relative;
   background: rgba(0,0,0,.4);
   border: 1px solid rgba(255,255,255,.1);
   border-radius: 16px;
   padding: 36px 40px;
   text-align: center;
   width: 340px;
+  z-index: 1;
+}
+.login-flag {
+  position: absolute;
+  top: -28px;
+  right: -24px;
+  width: 56px;
+  filter: drop-shadow(0 2px 8px rgba(0,0,0,.5));
+  pointer-events: none;
 }
 .login-title {
   font-size: 28px;
@@ -128,6 +161,15 @@ function handleLogin() {
 .login-input.input-error { border-color: #ef4444; }
 .error-text { color: #ef4444; font-size: 12px; margin-top: 6px; }
 .input-hint { font-size: 11px; color: #666; margin-top: 6px; }
+.returning-rank {
+  margin-top: 8px;
+  padding: 6px 12px;
+  background: rgba(251,191,36,.08);
+  border: 1px solid rgba(251,191,36,.15);
+  border-radius: 6px;
+  font-size: 12px;
+  color: #fbbf24;
+}
 .sail-btn {
   width: 100%;
   margin-top: 20px;
@@ -170,7 +212,27 @@ function handleLogin() {
   letter-spacing: normal;
 }
 .admin-btn::before { display: none; }
-.ship-preview { margin-top: 20px; text-align: center; }
+.ship-preview { margin-top: 20px; text-align: center; z-index: 1; }
 .preview-label { font-size: 11px; color: #888; margin-bottom: 6px; }
-.preview-svg { width: 200px; }
+.preview-ship-wrap {
+  position: relative;
+  display: inline-block;
+}
+.preview-ship-img {
+  width: 120px;
+  filter: drop-shadow(0 4px 12px rgba(0,0,0,.5));
+  animation: shipBob 3s ease-in-out infinite;
+}
+.preview-initials {
+  position: absolute;
+  bottom: 32%;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 14px;
+  font-weight: 700;
+  color: #fbbf24;
+  font-family: Georgia, serif;
+  text-shadow: 0 1px 3px rgba(0,0,0,.8);
+  letter-spacing: 2px;
+}
 </style>

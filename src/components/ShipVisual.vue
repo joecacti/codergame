@@ -21,6 +21,8 @@ defineProps({
       </defs>
       <rect width="100" height="68" fill="url(#sky)" />
       <rect y="68" width="100" height="32" fill="url(#sea)" />
+      <!-- Decorative dock -->
+      <image href="/images/pirate-kit/structure-platform-dock.png" x="0" y="60" width="22" height="16" opacity=".6" />
       <text x="50" y="18" text-anchor="middle" font-size="5" fill="#2c3e50" font-weight="bold">🎉 SHE'S SEAWORTHY! 🎉</text>
       <g>
         <polygon points="30,62 70,62 65,75 35,75" fill="#8B4513" stroke="#5C2E00" stroke-width=".5" />
@@ -94,6 +96,7 @@ defineProps({
 
     <!-- Fail 6: chomp -->
     <template v-if="failState === 6">
+      <image href="/images/pirate-kit/ship-wreck.png" x="25" y="58" width="50" height="30" opacity=".4" />
       <text x="55" y="75" text-anchor="middle" font-size="16">🦈</text>
       <text x="50" y="20" text-anchor="middle" font-size="5" fill="#c0392b" font-weight="bold">CHOMP! 😋</text>
       <text x="40" y="62" font-size="2" opacity=".5">🫧</text>
@@ -115,6 +118,9 @@ defineProps({
       <rect y="68" width="100" height="32" fill="url(#sea3)" />
       <path d="M0,70 Q10,67 20,70 Q30,73 40,70 Q50,67 60,70 Q70,73 80,70 Q90,67 100,70" fill="none" stroke="#fff" stroke-width=".5" opacity=".5" />
 
+      <!-- Scenery -->
+      <image href="/images/pirate-kit/barrel.png" x="2" y="56" width="12" height="12" opacity=".5" />
+      <image href="/images/pirate-kit/crate.png" x="86" y="58" width="12" height="10" opacity=".5" />
       <!-- Empty state -->
       <template v-if="!built.hull && !built.sails && !built.crew && !built.anchor">
         <text x="50" y="38" text-anchor="middle" font-size="4" fill="#7f8c8d">Drag code to build your ship!</text>

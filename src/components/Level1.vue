@@ -25,44 +25,44 @@ const tutorialActive = ref(true)
 const TUTORIAL_STEPS = [
   {
     title: "Welcome aboard, Captain!",
-    text: "Before we build your ship, let's learn about VARIABLES \u2014 the building blocks of code!",
-    icon: "\u{1F3F4}\u200D\u2620\uFE0F",
+    text: "Before we build your ship, let's learn about VARIABLES — the building blocks of code!",
+    icon: "🏴‍☠️",
     highlight: null,
   },
   {
     title: "What's a Variable?",
     text: "A variable is like a labeled treasure chest. You give it a NAME and put a VALUE inside.\n\nFor example: let hull = \"oak\" creates a chest labeled \"hull\" with \"oak\" inside!",
-    icon: "\u{1F4E6}",
+    icon: "📦",
     highlight: null,
   },
   {
     title: "Different Types of Treasure",
-    text: "Variables can hold different types of values:\n\n\u2022 Text (strings): \"oak\" \u2014 always in quotes\n\u2022 Numbers: 3, 12 \u2014 no quotes needed\n\u2022 True/False (booleans): true or false",
-    icon: "\u{1F48E}",
+    text: "Variables can hold different types of values:\n\n• Text (strings): \"oak\" — always in quotes\n• Numbers: 3, 12 — no quotes needed\n• True/False (booleans): true or false",
+    icon: "💎",
     highlight: null,
   },
   {
     title: "The Code Toolbox",
-    text: "Over here you'll find code blocks \u2014 some are correct and some are WRONG! Drag the right ones to build your ship.",
-    icon: "\u2699\uFE0F",
+    text: "Over here you'll find code blocks — some are correct and some are WRONG! Drag the right ones to build your ship.",
+    icon: "⚙️",
     highlight: "toolbox",
   },
   {
     title: "The Ship Parts",
-    text: "Drop each code block into its matching ship part. Look at the variable NAME to figure out where it goes \u2014 \"hull\" goes in Hull, \"sails\" goes in Sails, etc.",
-    icon: "\u{1F527}",
+    text: "Drop each code block into its matching ship part. Look at the variable NAME to figure out where it goes — \"hull\" goes in Hull, \"sails\" goes in Sails, etc.",
+    icon: "🔧",
     highlight: "dropzones",
   },
   {
     title: "Watch Out for Bad Code!",
-    text: "Some blocks have silly values that won't work \u2014 like a hull of 0 or fish for sails! Pick the values that make sense for a real ship.",
-    icon: "\u{1F988}",
+    text: "Some blocks have silly values that won't work — like a hull of 0 or fish for sails! Pick the values that make sense for a real ship.",
+    icon: "🦈",
     highlight: null,
   },
   {
     title: "Ready to Build!",
     text: "Drag the correct code blocks into each ship part, then hit Launch! If the code is wrong... the ship sinks! Good luck, Captain!",
-    icon: "\u26F5",
+    icon: "⛵",
     highlight: null,
   },
 ]
@@ -111,6 +111,19 @@ const built = computed(() => ({
 }))
 
 const filledCount = computed(() => Object.values(slots.value).filter(Boolean).length)
+
+// Enforce build order: hull → sails → crew → anchor
+const nextSlotIndex = computed(() => {
+  for (let i = 0; i < SLOTS.length; i++) {
+    if (!slots.value[SLOTS[i]]) return i
+  }
+  return SLOTS.length
+})
+
+function isSlotUnlocked(slot) {
+  const idx = SLOTS.indexOf(slot)
+  return idx <= nextSlotIndex.value
+}
 const activeFailState = computed(() => launched.value ? failState.value : miniSink.value)
 
 // CodeExplainer: show breakdown for last placed slot
@@ -147,11 +160,17 @@ function onDragEnd() {
   if (!Object.values(slots.value).includes(dragging.value)) dragging.value = null
 }
 function onDragOver(e, slot) {
-  if (!slots.value[slot] && !launched.value && !miniSink.value) e.preventDefault()
+  if (!slots.value[slot] && !launched.value && !miniSink.value && isSlotUnlocked(slot)) e.preventDefault()
 }
 
 function handleDrop(slot) {
   if (!dragging.value || slots.value[slot] || launched.value || miniSink.value) return
+  if (!isSlotUnlocked(slot)) {
+    const prevSlot = SLOTS[SLOTS.indexOf(slot) - 1]
+    msg.value = `Build the ${prevSlot} first, Captain!`
+    dragging.value = null
+    return
+  }
   const block = dragging.value
   if (!block.includes(slot)) {
     msg.value = `That's for a different part! Try ${slot}.`
@@ -183,11 +202,11 @@ function handleDrop(slot) {
     if (hasShip) {
       sSplash()
       miniSink.value = 1
-      setTimeout(() => { miniSink.value = 2; msg.value = "She's cracking apart! \u{1F4A5}" }, 1000)
-      setTimeout(() => { miniSink.value = 3; msg.value = "She's going down! \u{1FAE7}" }, 2000)
-      setTimeout(() => { miniSink.value = 4; msg.value = "Captain overboard! SWIM! \u{1F3CA}" }, 3000)
-      setTimeout(() => { miniSink.value = 5; msg.value = "Is that a... FIN?! \u{1F631}" }, 4200)
-      setTimeout(() => { miniSink.value = 6; msg.value = "CHOMP! \u{1F988} Bad code sinks ships!" }, 5400)
+      setTimeout(() => { miniSink.value = 2; msg.value = "She's cracking apart! 💥" }, 1000)
+      setTimeout(() => { miniSink.value = 3; msg.value = "She's going down! 🫧" }, 2000)
+      setTimeout(() => { miniSink.value = 4; msg.value = "Captain overboard! SWIM! 🏊" }, 3000)
+      setTimeout(() => { miniSink.value = 5; msg.value = "Is that a... FIN?! 😱" }, 4200)
+      setTimeout(() => { miniSink.value = 6; msg.value = "CHOMP! 🦈 Bad code sinks ships!" }, 5400)
       setTimeout(() => {
         slots.value = { hull: null, sails: null, crew: null, anchor: null }
         const a = shuffle([...Object.values(CORRECT), ...DISTRACTORS])
@@ -209,8 +228,15 @@ function handleDrop(slot) {
 
 function handleRemove(slot) {
   if (launched.value || miniSink.value || !slots.value[slot]) return
-  toolbox.value.push(slots.value[slot])
-  slots.value[slot] = null
+  // Remove this slot and all slots after it (to maintain build order)
+  const idx = SLOTS.indexOf(slot)
+  for (let i = SLOTS.length - 1; i >= idx; i--) {
+    if (slots.value[SLOTS[i]]) {
+      toolbox.value.push(slots.value[SLOTS[i]])
+      slots.value[SLOTS[i]] = null
+    }
+  }
+  lastPlacedSlot.value = null
   msg.value = 'Block removed!'
 }
 
@@ -219,7 +245,7 @@ function handleLaunch() {
   launched.value = true
   sLaunch()
   if (Object.entries(slots.value).every(([k, v]) => v === CORRECT[k])) {
-    msg.value = "ALL CANNONS FIRE! \u{1F389} She's perfect, Captain " + props.initials + '!'
+    msg.value = "ALL CANNONS FIRE! 🎉 She's perfect, Captain " + props.initials + '!'
     successState.value = true
     sCorrect()
     sBadge()
@@ -229,14 +255,14 @@ function handleLaunch() {
     fireConfetti(75, 30, 'golden-burst')
     setTimeout(() => { showConceptCard.value = true }, 1500)
   } else {
-    msg.value = 'Uh oh... \u{1F630}'
+    msg.value = 'Uh oh... 😰'
     sWrong()
     failState.value = 1
-    setTimeout(() => { failState.value = 2; msg.value = 'CRACK! \u{1F4A5}' }, 1200)
-    setTimeout(() => { failState.value = 3; msg.value = 'SINKING! \u{1FAE7}' }, 2400)
-    setTimeout(() => { failState.value = 4; msg.value = 'Captain overboard! \u{1F3CA}' }, 3600)
-    setTimeout(() => { failState.value = 5; msg.value = 'Is that a FIN?! \u{1F631}' }, 5000)
-    setTimeout(() => { sSplash(); failState.value = 6; msg.value = "CHOMP! \u{1F988} Let's see what went wrong..." }, 6500)
+    setTimeout(() => { failState.value = 2; msg.value = 'CRACK! 💥' }, 1200)
+    setTimeout(() => { failState.value = 3; msg.value = 'SINKING! 🫧' }, 2400)
+    setTimeout(() => { failState.value = 4; msg.value = 'Captain overboard! 🏊' }, 3600)
+    setTimeout(() => { failState.value = 5; msg.value = 'Is that a FIN?! 😱' }, 5000)
+    setTimeout(() => { sSplash(); failState.value = 6; msg.value = "CHOMP! 🦈 Let's see what went wrong..." }, 6500)
   }
 }
 
@@ -271,7 +297,7 @@ const wrongEntries = computed(() => {
     <!-- Tutorial Overlay -->
     <div v-if="tutorialActive" class="tutorial-overlay">
       <div class="tutorial-card">
-        <button class="tutorial-skip" @click="skipTutorial">Skip Tutorial \u2192</button>
+        <button class="tutorial-skip" @click="skipTutorial">Skip Tutorial →</button>
         <div class="tutorial-icon">{{ currentTutorial.icon }}</div>
         <div class="tutorial-title">{{ currentTutorial.title }}</div>
         <div class="tutorial-text">{{ currentTutorial.text }}</div>
@@ -284,28 +310,28 @@ const wrongEntries = computed(() => {
           />
         </div>
         <div class="tutorial-buttons">
-          <button v-if="tutorialStep > 0" class="tutorial-btn tutorial-btn-back" @click="prevTutorialStep">\u2190 Back</button>
+          <button v-if="tutorialStep > 0" class="tutorial-btn tutorial-btn-back" @click="prevTutorialStep">← Back</button>
           <button class="tutorial-btn tutorial-btn-next" @click="nextTutorialStep">
-            {{ tutorialStep === TUTORIAL_STEPS.length - 1 ? "Let's Go! \u26F5" : 'Next \u2192' }}
+            {{ tutorialStep === TUTORIAL_STEPS.length - 1 ? "Let's Go! ⛵" : 'Next →' }}
           </button>
         </div>
       </div>
 
       <!-- Highlight arrows for toolbox/dropzones steps -->
       <div v-if="currentTutorial.highlight === 'toolbox'" class="tutorial-highlight tutorial-highlight-left">
-        <div class="tutorial-arrow">\u{1F448} Over here!</div>
+        <div class="tutorial-arrow">👈 Over here!</div>
       </div>
       <div v-if="currentTutorial.highlight === 'dropzones'" class="tutorial-highlight tutorial-highlight-right">
-        <div class="tutorial-arrow">Over here! \u{1F449}</div>
+        <div class="tutorial-arrow">Over here! 👉</div>
       </div>
     </div>
 
     <!-- Header -->
     <div class="header">
-      <div class="header-title">\u{1F3F4}\u200D\u2620\uFE0F Pirates of the Coderbbean</div>
+      <div class="header-title">🏴‍☠️ Pirates of the Coderbbean</div>
       <div class="header-right">
         <span class="rank-badge">{{ rank.emoji }} {{ rank.title }}</span>
-        <button class="mute-btn" @click="toggleMute" :title="muted ? 'Unmute' : 'Mute'">{{ muted ? '\u{1F507}' : '\u{1F50A}' }}</button>
+        <button class="mute-btn" @click="toggleMute" :title="muted ? 'Unmute' : 'Mute'">{{ muted ? '🔇' : '🔊' }}</button>
         <span class="header-info">Captain <b class="gold">{{ initials }}</b></span>
         <span class="header-sep">|</span>
         <span class="header-info">Level 1: Build Your Ship</span>
@@ -336,7 +362,7 @@ const wrongEntries = computed(() => {
     </div>
 
     <!-- Captain message -->
-    <div class="captain-msg">\u{1F9D1}\u200D\u2708\uFE0F "{{ msg }}"</div>
+    <div class="captain-msg">🧑‍✈️ "{{ msg }}"</div>
 
     <!-- Variable Watch -->
     <VariableWatch :slots="slots" :correct="CORRECT" />
@@ -345,13 +371,29 @@ const wrongEntries = computed(() => {
     <CodeExplainer :parts="activeBreakdown" :visible="!!lastPlacedSlot" />
 
     <!-- Hint Button -->
-    <HintButton :hints="currentHints" :xp="xp" @use-hint="handleHint" />
+    <div class="hint-row"><img src="/images/pirate-kit/bottle.png" alt="" class="hint-bottle" /><HintButton :hints="currentHints" :xp="xp" @use-hint="handleHint" /></div>
 
-    <!-- 3-column layout -->
+    <!-- Ship visual (compact, above interaction area) -->
+    <div class="ship-area">
+      <img src="/images/pirate-kit/barrel.png" alt="" class="deco-barrel-l1" />
+      <Confetti v-for="c in confettiList" :key="c.id" :x="c.x" :y="c.y" :count="40" :variant="c.variant || 'confetti'" />
+      <ShipVisual :built="built" :fail-state="activeFailState" :success-state="successState" :initials="initials" />
+    </div>
+
+    <!-- Step guide -->
+    <div class="step-guide">
+      <span class="step-num">1</span> Pick a code block
+      <span class="step-arrow">→</span>
+      <span class="step-num">2</span> Drag it to the matching part
+      <span class="step-arrow">→</span>
+      <span class="step-num">3</span> Launch when all 4 are filled!
+    </div>
+
+    <!-- 2-column layout: Toolbox + Drop Zones side by side -->
     <div class="game-columns">
       <!-- Toolbox -->
       <div class="toolbox">
-        <div class="column-label">\u2699\uFE0F Code Toolbox \u2014 Drag \u2192</div>
+        <div class="column-label">⚙️ Code Blocks</div>
         <div
           v-for="(block, i) in toolbox"
           :key="block + i"
@@ -361,20 +403,19 @@ const wrongEntries = computed(() => {
           @dragstart="onDragStart(block)"
           @dragend="onDragEnd"
         >
-          <span class="grip">\u2807</span>{{ block }}
+          <span class="grip">⠇</span>{{ block }}
         </div>
         <div v-if="toolbox.length === 0" class="empty-toolbox">All blocks placed!</div>
       </div>
 
-      <!-- Ship visual -->
-      <div class="ship-area">
-        <Confetti v-for="c in confettiList" :key="c.id" :x="c.x" :y="c.y" :count="40" :variant="c.variant || 'confetti'" />
-        <ShipVisual :built="built" :fail-state="activeFailState" :success-state="successState" :initials="initials" />
+      <!-- Arrow divider -->
+      <div class="drag-arrow-col">
+        <div class="drag-arrow" :class="{ active: dragging }">drag<br/>→</div>
       </div>
 
       <!-- Drop zones -->
       <div class="drop-zones">
-        <div class="column-label">\u{1F527} Ship Parts \u2014 Drop here</div>
+        <div class="column-label">🔧 Ship Parts — drop here</div>
         <div
           v-for="slot in SLOTS"
           :key="slot"
@@ -383,7 +424,8 @@ const wrongEntries = computed(() => {
             filled: slots[slot],
             correct: slots[slot] && slots[slot] === CORRECT[slot],
             wrong: wrongSlot === slot,
-            'drag-hover': dragging && !slots[slot],
+            'drag-hover': dragging && !slots[slot] && isSlotUnlocked(slot),
+            locked: !slots[slot] && !isSlotUnlocked(slot),
           }"
           @dragover="onDragOver($event, slot)"
           @drop="handleDrop(slot)"
@@ -392,15 +434,15 @@ const wrongEntries = computed(() => {
           <div class="slot-label">{{ SLOT_LABELS[slot] }}</div>
           <div v-if="slots[slot]" class="slot-filled">
             <span>{{ slots[slot] }}</span>
-            <span v-if="!launched && !miniSink" class="remove-x">\u2715</span>
+            <span v-if="!launched && !miniSink" class="remove-x">✕</span>
           </div>
-          <div v-else class="slot-empty">[ drop {{ slot }} code ]</div>
+          <div v-else class="slot-empty">{{ isSlotUnlocked(slot) ? `[ drop ${slot} code here ]` : `🔒 build ${SLOTS[SLOTS.indexOf(slot) - 1]} first` }}</div>
         </div>
 
         <div class="concepts-section">
           <div class="column-label">Concepts</div>
           <div class="concept-badge" :class="{ unlocked: successState }">
-            {{ successState ? '\u2705' : '\u{1F512}' }} Variables
+            {{ successState ? '✅' : '🔒' }} Variables
           </div>
         </div>
       </div>
@@ -408,26 +450,26 @@ const wrongEntries = computed(() => {
 
     <!-- Wrong entries explanation -->
     <div v-if="failState === 6 && wrongEntries.length > 0" class="wrong-panel">
-      <div class="wrong-title">\u{1F9D1}\u200D\u2708\uFE0F "Here's what went wrong..."</div>
+      <div class="wrong-title">🧑‍✈️ "Here's what went wrong..."</div>
       <div v-for="[slot, val] in wrongEntries" :key="slot" class="wrong-entry">
-        <div class="wrong-line"><span class="x-mark">\u2717</span><code class="wrong-code">{{ val }}</code><span class="hint">{{ WRONG_EXPLANATIONS[slot] || '\u2190 wrong!' }}</span></div>
-        <div class="wrong-line correct-line"><span class="check-mark">\u2713</span><code class="correct-code">{{ CORRECT[slot] }}</code><span class="hint">\u2190 try this!</span></div>
+        <div class="wrong-line"><span class="x-mark">✗</span><code class="wrong-code">{{ val }}</code><span class="hint">{{ WRONG_EXPLANATIONS[slot] || '← wrong!' }}</span></div>
+        <div class="wrong-line correct-line"><span class="check-mark">✓</span><code class="correct-code">{{ CORRECT[slot] }}</code><span class="hint">← try this!</span></div>
       </div>
     </div>
 
     <!-- Success banner -->
     <div v-if="successState && !showConceptCard" class="success-panel">
-      <div class="success-emoji">\u{1F389}</div>
+      <div class="success-emoji">🎉</div>
       <div class="success-title">Variables Unlocked!</div>
       <div class="success-sub">Captain {{ initials }}, you used variables to build a ship!</div>
     </div>
 
     <!-- Action buttons -->
     <div class="actions">
-      <button v-if="!launched && !miniSink" @click="handleLaunch" class="launch-btn" :class="{ ready: filledCount === 4 }">\u26F5 Launch Ship!</button>
+      <button v-if="!launched && !miniSink" @click="handleLaunch" class="launch-btn" :class="{ ready: filledCount === 4 }">⛵ Launch Ship!</button>
       <template v-if="launched">
-        <button @click="handleReset" class="reset-btn">\u{1F504} Try Again</button>
-        <button v-if="successState" @click="$emit('complete')" class="next-btn">\u26F5 Set Sail \u2192 Level 2</button>
+        <button @click="handleReset" class="reset-btn">🔄 Try Again</button>
+        <button v-if="successState" @click="$emit('complete')" class="next-btn">⛵ Set Sail → Level 2</button>
       </template>
     </div>
   </div>
@@ -514,6 +556,46 @@ const wrongEntries = computed(() => {
   font-style: italic;
 }
 
+/* Ship area — compact, above the interaction columns */
+.ship-area {
+  margin: 0 16px 8px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,.1);
+  height: 220px;
+  position: relative;
+  background: rgba(0,0,0,.15);
+}
+
+/* Step guide */
+.step-guide {
+  margin: 0 16px 8px;
+  padding: 8px 14px;
+  background: rgba(74,144,217,.08);
+  border: 1px solid rgba(74,144,217,.2);
+  border-radius: 8px;
+  font-size: 12px;
+  color: #a5f3fc;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  justify-content: center;
+}
+.step-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: rgba(74,144,217,.2);
+  border: 1px solid rgba(74,144,217,.4);
+  font-size: 11px;
+  font-weight: 700;
+  color: #60a5fa;
+}
+.step-arrow { color: #555; font-size: 14px; }
+
 .game-columns {
   display: flex;
   gap: 0;
@@ -521,15 +603,40 @@ const wrongEntries = computed(() => {
   border-radius: 10px;
   overflow: hidden;
   border: 1px solid rgba(255,255,255,.1);
-  height: 420px;
+  min-height: 280px;
 }
 
 .toolbox {
-  width: 195px;
+  flex: 1;
   background: rgba(0,0,0,.3);
-  border-right: 1px solid rgba(255,255,255,.1);
   padding: 12px;
   overflow-y: auto;
+}
+
+/* Arrow divider between toolbox and drop zones */
+.drag-arrow-col {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  background: rgba(0,0,0,.2);
+  border-left: 1px solid rgba(255,255,255,.06);
+  border-right: 1px solid rgba(255,255,255,.06);
+}
+.drag-arrow {
+  color: #555;
+  font-size: 18px;
+  text-align: center;
+  line-height: 1.3;
+  transition: all .3s;
+}
+.drag-arrow.active {
+  color: #4a90d9;
+  animation: arrowPulse .8s ease-in-out infinite;
+}
+@keyframes arrowPulse {
+  0%, 100% { transform: translateX(0); opacity: .6; }
+  50% { transform: translateX(4px); opacity: 1; }
 }
 .column-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #888; margin-bottom: 8px; }
 .code-block {
@@ -550,12 +657,16 @@ const wrongEntries = computed(() => {
 .grip { color: #555; margin-right: 6px; }
 .empty-toolbox { font-size: 12px; color: #555; text-align: center; padding: 20px; }
 
-.ship-area { flex: 1; position: relative; background: rgba(0,0,0,.15); }
+.label-icon { width: 18px; height: 18px; vertical-align: middle; margin-right: 4px; filter: drop-shadow(0 1px 2px rgba(0,0,0,.4)); }
+.btn-icon { width: 22px; height: 22px; vertical-align: middle; margin-right: 4px; filter: drop-shadow(0 1px 3px rgba(0,0,0,.4)); }
+.hint-row { display: flex; align-items: center; gap: 6px; padding: 0 16px; }
+.hint-bottle { width: 28px; filter: drop-shadow(0 2px 4px rgba(0,0,0,.4)); opacity: .7; }
+.deco-barrel-l1 { position: absolute; bottom: 4px; right: 6px; width: 36px; opacity: .2; pointer-events: none; filter: drop-shadow(0 2px 6px rgba(0,0,0,.5)); z-index: 0; }
+.success-chest { width: 64px; filter: drop-shadow(0 4px 12px rgba(251,191,36,.3)); margin-bottom: 6px; }
 
 .drop-zones {
-  width: 210px;
+  flex: 1;
   background: rgba(0,0,0,.3);
-  border-left: 1px solid rgba(255,255,255,.1);
   padding: 12px;
 }
 .drop-slot {
@@ -572,6 +683,7 @@ const wrongEntries = computed(() => {
 .drop-slot.correct { border-color: #22c55e; background: rgba(34,197,94,.08); }
 .drop-slot.wrong { border-color: #ef4444; background: rgba(239,68,68,.1); animation: shake .4s; }
 .drop-slot.drag-hover { border-color: #4a90d9; background: rgba(74,144,217,.08); }
+.drop-slot.locked { opacity: .4; border-color: rgba(255,255,255,.06); }
 .slot-label { font-size: 10px; color: #888; margin-bottom: 3px; }
 .slot-filled { font-family: monospace; font-size: 11px; display: flex; justify-content: space-between; align-items: center; }
 .drop-slot.correct .slot-filled { color: #86efac; }
