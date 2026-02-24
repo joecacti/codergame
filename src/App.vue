@@ -4,13 +4,17 @@ import LoginScreen from './components/LoginScreen.vue'
 import Level1 from './components/Level1.vue'
 import Level2 from './components/Level2.vue'
 import AdminDashboard from './components/AdminDashboard.vue'
+import IslandOfGary from './components/IslandOfGary.vue'
+import { useSound } from './composables/useSound.js'
 
 const screen = ref('login')
 const playerInitials = ref('')
+const { startMusic } = useSound()
 
 function handleLogin(initials) {
   playerInitials.value = initials
   screen.value = 'level1'
+  startMusic()
 }
 
 function goAdmin() {
@@ -39,6 +43,12 @@ function adminBack() {
       v-else-if="screen === 'level2'"
       :initials="playerInitials"
       @admin="goAdmin"
+      @gary-island="screen = 'garyIsland'"
+    />
+    <IslandOfGary
+      v-else-if="screen === 'garyIsland'"
+      :initials="playerInitials"
+      @back="screen = 'level2'"
     />
     <AdminDashboard
       v-else-if="screen === 'admin'"

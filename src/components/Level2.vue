@@ -12,14 +12,14 @@ import { useProgress } from '../composables/useProgress.js'
 const props = defineProps({
   initials: { type: String, required: true },
 })
-const emit = defineEmits(['admin'])
+const emit = defineEmits(['admin', 'garyIsland'])
 
 const { click: sClick, correct: sCorrect, wrong: sWrong, badge: sBadge, splash: sSplash, muted, toggleMute } = useSound()
 const { xp, rank, xpProgress, floats, awardCorrectDodge, awardFirstTry, awardLevelComplete, spendHint } = useProgress()
 
 const score = ref(0)
 const obstacleIdx = ref(0)
-const phase = ref('sailing') // sailing, prediction, challenge, dodging, crash, win
+const phase = ref('sailing') // sailing, prediction, challenge, dodging, crash, win, gary
 const shipX = ref(50)
 const selected = ref(null)
 const feedback = ref('')
@@ -33,6 +33,7 @@ const streak = ref(0)
 const bestStreak = ref(0)
 const firstTryTracker = ref({})
 const predictionAnswer = ref(null)
+const garyState = ref('hidden') // hidden, appear, talking, running
 let confettiId = 0
 let timerRef = null
 
@@ -149,6 +150,19 @@ function handleAnswer(idx) {
   }
 }
 
+function startGaryCutscene() {
+  phase.value = 'gary'
+  garyState.value = 'appear'
+  msg.value = 'Wait... who\'s that on the horizon?'
+  setTimeout(() => {
+    garyState.value = 'talking'
+    msg.value = '"To be continued!" — Gary'
+  }, 2000)
+  setTimeout(() => {
+    garyState.value = 'running'
+  }, 4500)
+}
+
 function handleHint() {
   spendHint()
   sClick()
@@ -188,6 +202,7 @@ const phaseLabel = computed(() => {
   if (phase.value === 'dodging') return 'Dodging!'
   if (phase.value === 'crash') return 'Crash!'
   if (phase.value === 'win') return 'Victory!'
+  if (phase.value === 'gary') return 'Who\'s That?!'
   return ''
 })
 </script>
@@ -195,7 +210,7 @@ const phaseLabel = computed(() => {
 <template>
   <div class="level2">
     <!-- ConceptCard overlay -->
-    <ConceptCard v-if="showConceptCard" :level="2" :initials="initials" @dismiss="showConceptCard = false" />
+    <ConceptCard v-if="showConceptCard" :level="2" :initials="initials" @dismiss="showConceptCard = false; startGaryCutscene()" />
 
     <!-- Header -->
     <div class="header">
@@ -291,6 +306,17 @@ const phaseLabel = computed(() => {
           <div class="repair-text">Repairing...</div>
         </div>
 
+        <!-- Gary cutscene -->
+        <div v-if="phase === 'gary'" class="gary-scene">
+          <div class="gary-character" :class="'gary-' + garyState">
+            <div class="gary-sprite">🏴‍☠️</div>
+            <div class="gary-name">Gary</div>
+          </div>
+          <div v-if="garyState === 'talking'" class="gary-speech">
+            <div class="gary-bubble">To be continued!</div>
+          </div>
+        </div>
+
         <!-- Ship or Win scene -->
         <div v-if="phase === 'win'" class="win-trophy">
           <img src="/images/pirate-kit/chest.png" alt="Treasure" class="trophy-chest" />
@@ -322,15 +348,15 @@ const phaseLabel = computed(() => {
           <div class="prediction-question">{{ currentObs.prediction.question }}</div>
           <div class="prediction-visual">{{ currentObs.prediction.visual }}</div>
           <div class="prediction-actions">
-            <button class="prediction-btn" @click="handlePrediction('yes')">
-              {{ predictionAnswer === 'yes' ? '\u2705 ' : '' }}I think so!
+            <button class="prediction-btn" :class="{ chosen: predictionAnswer === 'yes', right: predictionAnswer === 'yes' && currentObs.prediction.correct === 'yes', wrong: predictionAnswer === 'yes' && currentObs.prediction.correct !== 'yes' }" :disabled="!!predictionAnswer" @click="handlePrediction('yes')">
+              {{ currentObs.prediction.yesText }}
             </button>
-            <button class="prediction-btn" @click="handlePrediction('no')">
-              {{ predictionAnswer === 'no' ? '\u2705 ' : '' }}Not sure...
+            <button class="prediction-btn" :class="{ chosen: predictionAnswer === 'no', right: predictionAnswer === 'no' && currentObs.prediction.correct === 'no', wrong: predictionAnswer === 'no' && currentObs.prediction.correct !== 'no' }" :disabled="!!predictionAnswer" @click="handlePrediction('no')">
+              {{ currentObs.prediction.noText }}
             </button>
           </div>
-          <div v-if="predictionAnswer" class="prediction-feedback">
-            Great thinking! Now let's write the code...
+          <div v-if="predictionAnswer" class="prediction-feedback" :class="{ 'feedback-correct': predictionAnswer === currentObs.prediction.correct, 'feedback-wrong': predictionAnswer !== currentObs.prediction.correct }">
+            {{ predictionAnswer === currentObs.prediction.correct ? '🎯 Nice! ' : '🤔 Not quite — ' }}{{ currentObs.prediction.answer }}
           </div>
         </div>
 
@@ -401,6 +427,27 @@ const phaseLabel = computed(() => {
           <button @click="$emit('admin')" class="leaderboard-btn">
             <img src="/images/pirate-kit/chest.png" alt="" class="btn-chest" /> View Leaderboard
           </button>
+        </div>
+
+        <!-- Gary cutscene panel -->
+        <div v-if="phase === 'gary'" class="panel-gary">
+          <div class="gary-panel-title">&#x1F3F4;&#x200D;&#x2620;&#xFE0F; A Mysterious Figure...</div>
+          <div v-if="garyState === 'appear'" class="gary-panel-text">
+            Someone is approaching from the mist...
+          </div>
+          <div v-if="garyState === 'talking'" class="gary-panel-text">
+            <div class="gary-dialogue">"You think you've won, Captain {{ initials }}? This is only the beginning!"</div>
+            <div class="gary-dialogue gary-dialogue-delay">"To be continued!"</div>
+          </div>
+          <div v-if="garyState === 'running'" class="gary-panel-text">
+            <div class="gary-ran-away">Gary has fled to his island!</div>
+            <button @click="$emit('garyIsland')" class="gary-island-btn">
+              &#x1F3DD;&#xFE0F; Sail to the Island of Gary
+            </button>
+            <button @click="$emit('admin')" class="leaderboard-btn gary-lb-btn">
+              <img src="/images/pirate-kit/chest.png" alt="" class="btn-chest" /> View Leaderboard
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -783,14 +830,20 @@ const phaseLabel = computed(() => {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   transition: all .2s;
 }
-.prediction-btn:hover { background: rgba(168,85,247,.2); }
+.prediction-btn:hover:not(:disabled) { background: rgba(168,85,247,.2); }
+.prediction-btn:disabled { opacity: .6; cursor: default; }
+.prediction-btn.chosen { border-width: 2px; }
+.prediction-btn.right { border-color: #22c55e; background: rgba(34,197,94,.15); color: #4ade80; }
+.prediction-btn.wrong { border-color: #ef4444; background: rgba(239,68,68,.1); color: #f87171; }
 .prediction-feedback {
   padding: 10px 16px;
   font-size: 12px;
-  color: #a855f7;
   font-style: italic;
   animation: panelIn .3s ease;
+  border-radius: 6px;
 }
+.feedback-correct { color: #4ade80; background: rgba(34,197,94,.08); }
+.feedback-wrong { color: #fbbf24; background: rgba(251,191,36,.08); }
 
 /* Challenge panel */
 .panel-challenge {
@@ -928,5 +981,169 @@ const phaseLabel = computed(() => {
 @keyframes panelIn {
   from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+/* Phase badge: Gary */
+.phase-gary { background: rgba(139,92,246,.4); color: #c4b5fd; }
+
+/* Gary scene in ocean */
+.gary-scene {
+  position: absolute;
+  inset: 0;
+  z-index: 15;
+  overflow: hidden;
+}
+.gary-character {
+  position: absolute;
+  top: 35%;
+  transition: all 1.5s ease-in-out;
+  text-align: center;
+}
+.gary-appear {
+  left: 50%;
+  transform: translateX(-50%);
+  animation: garyFadeIn 1.5s ease forwards;
+}
+.gary-talking {
+  left: 50%;
+  transform: translateX(-50%) scale(1.1);
+}
+.gary-running {
+  left: 110%;
+  transform: translateX(0) scale(0.8);
+}
+@keyframes garyFadeIn {
+  from { opacity: 0; transform: translateX(-50%) scale(0.3); }
+  to { opacity: 1; transform: translateX(-50%) scale(1); }
+}
+.gary-sprite {
+  font-size: 64px;
+  filter: drop-shadow(0 4px 16px rgba(0,0,0,.6));
+  animation: garyBob 2s ease-in-out infinite;
+}
+@keyframes garyBob {
+  0%, 100% { transform: translateY(0) rotate(-2deg); }
+  50% { transform: translateY(-6px) rotate(2deg); }
+}
+.gary-name {
+  font-size: 16px;
+  font-weight: 700;
+  color: #c4b5fd;
+  font-family: Georgia, serif;
+  text-shadow: 0 2px 8px rgba(0,0,0,.8);
+  margin-top: 4px;
+}
+.gary-speech {
+  position: absolute;
+  top: 22%;
+  left: 50%;
+  transform: translateX(-50%);
+  animation: speechPop .4s ease;
+}
+@keyframes speechPop {
+  from { opacity: 0; transform: translateX(-50%) scale(0.5); }
+  to { opacity: 1; transform: translateX(-50%) scale(1); }
+}
+.gary-bubble {
+  background: #fff;
+  color: #1a1a2e;
+  font-size: 18px;
+  font-weight: 700;
+  font-family: Georgia, serif;
+  padding: 10px 20px;
+  border-radius: 12px;
+  position: relative;
+  box-shadow: 0 4px 16px rgba(0,0,0,.3);
+  white-space: nowrap;
+}
+.gary-bubble::after {
+  content: '';
+  position: absolute;
+  bottom: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-top: 8px solid #fff;
+}
+
+/* Gary side panel */
+.panel-gary {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  text-align: center;
+  animation: panelIn .3s ease;
+  gap: 12px;
+}
+.gary-panel-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #c4b5fd;
+  font-family: Georgia, serif;
+}
+.gary-panel-text {
+  font-size: 14px;
+  color: #a5b4fc;
+  line-height: 1.6;
+  animation: panelIn .5s ease;
+}
+.gary-dialogue {
+  font-style: italic;
+  font-family: Georgia, serif;
+  font-size: 15px;
+  color: #e2e8f0;
+  margin-bottom: 8px;
+}
+.gary-dialogue-delay {
+  font-size: 20px;
+  font-weight: 700;
+  color: #fbbf24;
+  animation: toBeContinued 1s ease infinite;
+}
+@keyframes toBeContinued {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .6; }
+}
+.gary-ran-away {
+  font-size: 14px;
+  color: #fbbf24;
+  font-style: italic;
+  margin-bottom: 16px;
+}
+.gary-island-btn {
+  padding: 12px 28px;
+  border-radius: 8px;
+  border: 2px solid #8b5cf6;
+  background: linear-gradient(135deg, #7c3aed, #8b5cf6);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: Georgia, serif;
+  box-shadow: 0 4px 16px rgba(139,92,246,.3);
+  transition: all .2s;
+}
+.gary-island-btn:hover {
+  background: linear-gradient(135deg, #6d28d9, #7c3aed);
+  box-shadow: 0 6px 20px rgba(139,92,246,.5);
+  transform: translateY(-1px);
+}
+.gary-lb-btn {
+  margin-top: 8px;
+  background: rgba(255,255,255,.08);
+  border: 1px solid rgba(255,255,255,.15);
+  color: #888;
+  font-size: 12px;
+  padding: 8px 16px;
+  box-shadow: none;
+}
+.gary-lb-btn:hover {
+  background: rgba(255,255,255,.12);
 }
 </style>
