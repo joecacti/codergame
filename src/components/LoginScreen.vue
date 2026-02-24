@@ -7,7 +7,15 @@ const emit = defineEmits(['login', 'admin'])
 
 const { click: sClick, launch: sLaunch, startMusic, voiceIntro } = useSound()
 
-onMounted(() => { startMusic('login'); voiceIntro() })
+onMounted(() => { startMusic('login') })
+
+let introPlayed = false
+function playIntroOnce() {
+  if (introPlayed) return
+  introPlayed = true
+  startMusic('login')
+  voiceIntro()
+}
 const { xp, rank } = useProgress()
 
 const hasProgress = computed(() => xp.value > 0)
@@ -36,7 +44,7 @@ function handleLogin() {
 </script>
 
 <template>
-  <div class="login-screen">
+  <div class="login-screen" @click="playIntroOnce" @touchstart.passive="playIntroOnce">
     <!-- Decorative background assets -->
     <img src="/images/pirate-kit/palm-bend.png" alt="" class="deco deco-palm-left" />
     <img src="/images/pirate-kit/palm-bend.png" alt="" class="deco deco-palm-right" />
@@ -100,7 +108,7 @@ function handleLogin() {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(180deg, #0a1628 0%, #1a2a4a 50%, #0a1628 100%);
+  background: url('/images/pirates_coderibbean_loading_screen.png') center center / cover no-repeat, #0a1628;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   color: #e2e8f0;
   position: relative;
@@ -134,8 +142,10 @@ function handleLogin() {
 
 .login-card {
   position: relative;
-  background: rgba(0,0,0,.4);
-  border: 1px solid rgba(255,255,255,.1);
+  background: rgba(10, 22, 40, .85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,.15);
   border-radius: 16px;
   padding: 36px 40px;
   text-align: center;
