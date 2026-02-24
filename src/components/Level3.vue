@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, watch, onBeforeUnmount } from 'vue'
-import { OBSTACLES } from '../data/obstacles.js'
+import { LOOP_OBSTACLES } from '../data/loopObstacles.js'
 import { shuffle } from '../data/codeBlocks.js'
 import Confetti from './Confetti.vue'
 import CodeExplainer from './CodeExplainer.vue'
@@ -12,9 +12,9 @@ import { useProgress } from '../composables/useProgress.js'
 const props = defineProps({
   initials: { type: String, required: true },
 })
-const emit = defineEmits(['admin', 'garyIsland', 'complete'])
+const emit = defineEmits(['admin', 'garyIsland'])
 
-const { click: sClick, correct: sCorrect, wrong: sWrong, badge: sBadge, splash: sSplash, muted, toggleMute } = useSound()
+const { click: sClick, correct: sCorrect, wrong: sWrong, badge: sBadge, splash: sSplash, muted, toggleMute, startMusic } = useSound()
 const { xp, rank, xpProgress, floats, awardCorrectDodge, awardFirstTry, awardLevelComplete, spendHint } = useProgress()
 
 const score = ref(0)
@@ -24,7 +24,7 @@ const shipX = ref(50)
 const selected = ref(null)
 const feedback = ref('')
 const explanation = ref('')
-const obstacles = ref(shuffle([...OBSTACLES]).slice(0, 5))
+const obstacles = ref(shuffle([...LOOP_OBSTACLES]).slice(0, 5))
 const crashState = ref(0)
 const confettiList = ref([])
 const msg = ref('Smooth sailing, Captain ' + props.initials + '! Keep your eyes on the horizon...')
@@ -115,8 +115,9 @@ function handleAnswer(idx) {
       explanation.value = ''
       if (newScore >= 5) {
         phase.value = 'win'
-        msg.value = "5 POINTS! You've mastered IF/ELSE, Captain " + props.initials + '! \u{1F3C6}'
+        msg.value = "5 POINTS! You've mastered LOOPS, Captain " + props.initials + '! \u{1F3C6}'
         sBadge()
+        startMusic('victory')
         awardLevelComplete()
         fireConfetti(25, 30, 'golden-burst')
         fireConfetti(50, 20, 'golden-burst')
@@ -169,7 +170,7 @@ function handleHint() {
 }
 
 function highlightCode(code) {
-  const keywords = ['let', 'if', 'else', 'true', 'false']
+  const keywords = ['let', 'if', 'else', 'true', 'false', 'for']
   let escaped = code
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -186,14 +187,6 @@ function highlightCode(code) {
 const obsY = computed(() => phase.value === 'challenge' || phase.value === 'prediction' ? 30 : phase.value === 'dodging' ? -10 : 15)
 const obsXPos = computed(() => currentObs.value.pos === 'left' ? 25 : 75)
 
-// Map obstacle names to pirate kit images where possible
-const obstacleImage = computed(() => {
-  const name = currentObs.value.name
-  if (name === 'Rock') return '/images/pirate-kit/rocks-a.png'
-  if (name === 'Enemy Ship') return '/images/pirate-kit/ship-ghost.png'
-  return null
-})
-
 // Phase label for the status indicator
 const phaseLabel = computed(() => {
   if (phase.value === 'sailing') return 'Sailing...'
@@ -208,9 +201,9 @@ const phaseLabel = computed(() => {
 </script>
 
 <template>
-  <div class="level2">
+  <div class="level3">
     <!-- ConceptCard overlay -->
-    <ConceptCard v-if="showConceptCard" :level="2" :initials="initials" @dismiss="showConceptCard = false; startGaryCutscene()" />
+    <ConceptCard v-if="showConceptCard" :level="3" :initials="initials" @dismiss="showConceptCard = false; startGaryCutscene()" />
 
     <!-- Header -->
     <div class="header">
@@ -223,7 +216,7 @@ const phaseLabel = computed(() => {
         <button class="mute-btn" @click="toggleMute" :title="muted ? 'Unmute' : 'Mute'">{{ muted ? '\u{1F507}' : '\u{1F50A}' }}</button>
         <span class="header-info">Captain <b class="gold">{{ initials }}</b></span>
         <span class="header-sep">|</span>
-        <span class="header-info">Level 2: First Sail</span>
+        <span class="header-info">Level 3: Loop the Loop</span>
       </div>
     </div>
 
@@ -290,8 +283,7 @@ const phaseLabel = computed(() => {
           class="obstacle"
           :style="{ left: obsXPos + '%', top: obsY + '%' }"
         >
-          <img v-if="obstacleImage" :src="obstacleImage" :alt="currentObs.name" class="obstacle-img" :class="{ 'obstacle-img-ship': currentObs.name === 'Enemy Ship' }" />
-          <span v-else class="obstacle-emoji">{{ currentObs.emoji }}</span>
+          <span class="obstacle-emoji">{{ currentObs.emoji }}</span>
           <div class="obstacle-label">{{ currentObs.name }}</div>
         </div>
 
@@ -416,17 +408,15 @@ const phaseLabel = computed(() => {
         <!-- Win state -->
         <div v-if="phase === 'win' && !showConceptCard" class="panel-win">
           <div class="win-emojis">&#x1F389;&#x1F3C6;&#x1F389;</div>
-          <div class="win-title">IF/ELSE Unlocked!</div>
-          <div class="win-sub">Captain {{ initials }}, you navigated {{ score }} obstacles using conditional logic!</div>
+          <div class="win-title">Loops Unlocked!</div>
+          <div class="win-sub">Captain {{ initials }}, you conquered {{ score }} obstacles using loops!</div>
           <div v-if="bestStreak >= 3" class="win-streak">&#x1F525; Best streak: {{ bestStreak }} in a row!</div>
           <div class="badges">
             <span class="badge unlocked">&#x2705; Variables</span>
             <span class="badge unlocked">&#x2705; IF/ELSE</span>
-            <span class="badge locked">&#x1F512; Loops</span>
+            <span class="badge unlocked">&#x2705; Loops</span>
+            <span class="badge locked">&#x1F512; Functions</span>
           </div>
-          <button @click="$emit('complete')" class="next-level-btn">
-            &#x1F680; Set Sail for Level 3
-          </button>
           <button @click="$emit('admin')" class="leaderboard-btn">
             <img src="/images/pirate-kit/chest.png" alt="" class="btn-chest" /> View Leaderboard
           </button>
@@ -439,14 +429,11 @@ const phaseLabel = computed(() => {
             Someone is approaching from the mist...
           </div>
           <div v-if="garyState === 'talking'" class="gary-panel-text">
-            <div class="gary-dialogue">"You think you've won, Captain {{ initials }}? This is only the beginning!"</div>
+            <div class="gary-dialogue">"You think you've mastered loops, Captain {{ initials }}? This is only the beginning!"</div>
             <div class="gary-dialogue gary-dialogue-delay">"To be continued!"</div>
           </div>
           <div v-if="garyState === 'running'" class="gary-panel-text">
             <div class="gary-ran-away">Gary has fled to his island!</div>
-            <button @click="$emit('complete')" class="next-level-btn">
-              &#x1F680; Set Sail for Level 3
-            </button>
             <button @click="$emit('garyIsland')" class="gary-island-btn">
               &#x1F3DD;&#xFE0F; Sail to the Island of Gary
             </button>
@@ -461,7 +448,7 @@ const phaseLabel = computed(() => {
 </template>
 
 <style scoped>
-.level2 {
+.level3 {
   min-height: 100vh;
   background: linear-gradient(180deg, #0a1628 0%, #0d2137 50%, #0a1628 100%);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -667,8 +654,6 @@ const phaseLabel = computed(() => {
   padding: 2px 8px;
   margin-top: -4px;
 }
-.obstacle-img { width: 72px; filter: drop-shadow(0 4px 12px rgba(0,0,0,.5)); }
-.obstacle-img-ship { width: 88px; }
 
 /* Crash effects */
 .crash-effect {
@@ -951,7 +936,7 @@ const phaseLabel = computed(() => {
 .win-title { font-size: 17px; font-weight: 700; color: #22c55e; }
 .win-sub { font-size: 13px; color: #888; margin-top: 6px; }
 .win-streak { font-size: 13px; color: #f87171; margin-top: 6px; font-weight: 600; }
-.badges { display: flex; gap: 8px; justify-content: center; margin-top: 16px; }
+.badges { display: flex; gap: 8px; justify-content: center; margin-top: 16px; flex-wrap: wrap; }
 .badge {
   display: inline-flex;
   align-items: center;
@@ -983,26 +968,6 @@ const phaseLabel = computed(() => {
 }
 .leaderboard-btn::before { display: none; }
 .btn-chest { width: 24px; }
-
-.next-level-btn {
-  margin-top: 12px;
-  padding: 12px 28px;
-  border-radius: 8px;
-  border: 2px solid #22c55e;
-  background: linear-gradient(135deg, #16a34a, #22c55e);
-  color: #fff;
-  font-size: 15px;
-  font-weight: 700;
-  cursor: pointer;
-  font-family: Georgia, serif;
-  box-shadow: 0 4px 16px rgba(34,197,94,.3);
-  transition: all .2s;
-}
-.next-level-btn:hover {
-  background: linear-gradient(135deg, #15803d, #16a34a);
-  box-shadow: 0 6px 20px rgba(34,197,94,.5);
-  transform: translateY(-1px);
-}
 
 @keyframes panelIn {
   from { opacity: 0; transform: translateY(6px); }
@@ -1171,32 +1136,5 @@ const phaseLabel = computed(() => {
 }
 .gary-lb-btn:hover {
   background: rgba(255,255,255,.12);
-}
-
-/* iPad / tablet */
-@media (max-width: 1024px) {
-  .header { flex-wrap: wrap; gap: 6px; }
-  .header-right { flex-wrap: wrap; gap: 8px; font-size: 11px; }
-
-  .game-layout {
-    flex-direction: column;
-    min-height: auto;
-  }
-  .ocean-view { min-height: 260px; }
-  .side-panel {
-    width: 100%;
-    border-left: none;
-    border-top: 1px solid rgba(255,255,255,.1);
-  }
-
-  .captain-msg { font-size: 12px; }
-  .obstacle-progress { flex-wrap: wrap; }
-}
-
-@media (max-width: 768px) {
-  .header-title { font-size: 14px; }
-  .ocean-view { min-height: 200px; }
-  .option-btn { font-size: 12px; padding: 8px 10px; }
-  .challenge-code { font-size: 11px; padding: 10px; }
 }
 </style>

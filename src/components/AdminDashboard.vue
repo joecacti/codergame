@@ -222,4 +222,24 @@ function barColor(pct) {
 .lb-chest { width: 24px; vertical-align: middle; margin-right: 6px; filter: drop-shadow(0 2px 4px rgba(0,0,0,.3)); }
 .lb-ship-img { width: 44px; filter: drop-shadow(0 2px 6px rgba(0,0,0,.4)); }
 .mastery-icon { width: 20px; vertical-align: middle; margin-right: 4px; filter: drop-shadow(0 1px 3px rgba(0,0,0,.3)); }
+
+/* iPad / tablet */
+@media (max-width: 1024px) {
+  .admin-body { padding: 16px; max-width: 100%; }
+  .stats-row { flex-wrap: wrap; }
+  .stat-card { min-width: 120px; }
+  .lb-columns, .lb-row {
+    grid-template-columns: 36px 50px 1fr 56px 56px 56px;
+    padding: 8px 12px;
+    font-size: 11px;
+  }
+  .lb-ship-img { width: 36px; }
+}
+
+@media (max-width: 768px) {
+  .lb-columns, .lb-row {
+    grid-template-columns: 32px 40px 1fr 50px 50px;
+  }
+  .lb-columns span:last-child, .lb-row .lb-time { display: none; }
+}
 </style>

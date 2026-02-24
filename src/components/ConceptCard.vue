@@ -37,6 +37,18 @@ const CONCEPTS = {
     ],
     footer: 'Every obstacle was an IF statement!',
   },
+  3: {
+    title: 'FOR LOOPS',
+    emoji: '🔁',
+    summary: 'Your code repeated actions using loops!',
+    details: [
+      { label: 'for', example: 'Start a loop (repeat)', color: '#c084fc' },
+      { label: 'i < N', example: 'How many times to repeat', color: '#60a5fa' },
+      { label: 'i++', example: 'Count up by 1 each time', color: '#fb923c' },
+      { label: '{ action }', example: 'What to do each loop', color: '#86efac' },
+    ],
+    footer: 'Every obstacle used a loop to repeat!',
+  },
 }
 </script>
 

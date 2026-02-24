@@ -1,11 +1,13 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useSound } from '../composables/useSound.js'
 import { useProgress } from '../composables/useProgress.js'
 
 const emit = defineEmits(['login', 'admin'])
 
-const { click: sClick, launch: sLaunch } = useSound()
+const { click: sClick, launch: sLaunch, startMusic } = useSound()
+
+onMounted(() => startMusic('login'))
 const { xp, rank } = useProgress()
 
 const hasProgress = computed(() => xp.value > 0)
@@ -234,5 +236,13 @@ function handleLogin() {
   font-family: Georgia, serif;
   text-shadow: 0 1px 3px rgba(0,0,0,.8);
   letter-spacing: 2px;
+}
+
+/* iPad / tablet */
+@media (max-width: 1024px) {
+  .login-card { width: min(340px, 85vw); padding: 28px 24px; }
+  .login-hero-ship { width: 140px; }
+  .login-title { font-size: 24px; }
+  .deco-palm-left, .deco-palm-right { width: 100px; }
 }
 </style>

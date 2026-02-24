@@ -91,6 +91,8 @@ const allBlocks = ref(shuffle([...Object.values(CORRECT), ...DISTRACTORS]))
 const toolbox = ref([...allBlocks.value])
 const slots = ref({ hull: null, sails: null, crew: null, anchor: null })
 const dragging = ref(null)
+const touchDragEl = ref(null)
+const touchOffset = ref({ x: 0, y: 0 })
 const wrongSlot = ref(null)
 const confettiList = ref([])
 const failState = ref(0)
@@ -161,6 +163,65 @@ function onDragEnd() {
 }
 function onDragOver(e, slot) {
   if (!slots.value[slot] && !launched.value && !miniSink.value && isSlotUnlocked(slot)) e.preventDefault()
+}
+
+// Touch drag-and-drop for iPad/mobile
+function onTouchStart(e, block) {
+  if (launched.value || miniSink.value) return
+  dragging.value = block
+  const touch = e.touches[0]
+  const rect = e.target.getBoundingClientRect()
+  touchOffset.value = { x: touch.clientX - rect.left, y: touch.clientY - rect.top }
+
+  // Create floating clone
+  const clone = e.target.cloneNode(true)
+  clone.classList.add('touch-clone')
+  clone.style.width = rect.width + 'px'
+  clone.style.left = (touch.clientX - touchOffset.value.x) + 'px'
+  clone.style.top = (touch.clientY - touchOffset.value.y) + 'px'
+  document.body.appendChild(clone)
+  touchDragEl.value = clone
+
+  e.preventDefault()
+}
+
+function onTouchMove(e) {
+  if (!dragging.value || !touchDragEl.value) return
+  const touch = e.touches[0]
+  touchDragEl.value.style.left = (touch.clientX - touchOffset.value.x) + 'px'
+  touchDragEl.value.style.top = (touch.clientY - touchOffset.value.y) + 'px'
+  e.preventDefault()
+}
+
+function onTouchEnd(e) {
+  if (!dragging.value) return
+  // Remove clone
+  if (touchDragEl.value) {
+    touchDragEl.value.remove()
+    touchDragEl.value = null
+  }
+
+  // Find which drop slot the touch ended over
+  const touch = e.changedTouches[0]
+  const dropEls = document.querySelectorAll('.drop-slot')
+  let dropped = false
+  for (const el of dropEls) {
+    const rect = el.getBoundingClientRect()
+    if (
+      touch.clientX >= rect.left && touch.clientX <= rect.right &&
+      touch.clientY >= rect.top && touch.clientY <= rect.bottom
+    ) {
+      const slot = el.dataset.slot
+      if (slot && !slots.value[slot] && isSlotUnlocked(slot)) {
+        handleDrop(slot)
+        dropped = true
+      }
+      break
+    }
+  }
+  if (!dropped) {
+    dragging.value = null
+  }
 }
 
 function handleDrop(slot) {
@@ -390,6 +451,9 @@ const wrongEntries = computed(() => {
               :draggable="!launched && !miniSink"
               @dragstart="onDragStart(block)"
               @dragend="onDragEnd"
+              @touchstart="onTouchStart($event, block)"
+              @touchmove="onTouchMove"
+              @touchend="onTouchEnd"
             >
               <span class="grip">⠇</span>{{ block }}
             </div>
@@ -407,6 +471,7 @@ const wrongEntries = computed(() => {
             <div
               v-for="slot in SLOTS"
               :key="slot"
+              :data-slot="slot"
               class="drop-slot"
               :class="{
                 filled: slots[slot],
@@ -585,14 +650,15 @@ const wrongEntries = computed(() => {
   gap: 8px;
 }
 
-/* Ship area — inside game-right */
+/* Ship area — inside game-right, most prominent element */
 .ship-area {
-  border-radius: 10px;
+  border-radius: 12px;
   overflow: hidden;
-  border: 1px solid rgba(255,255,255,.1);
-  height: 200px;
+  border: 2px solid rgba(251,191,36,.25);
+  height: 360px;
   position: relative;
   background: rgba(0,0,0,.15);
+  box-shadow: 0 4px 20px rgba(0,0,0,.3), 0 0 30px rgba(251,191,36,.08);
 }
 
 /* Step guide — inside game-left */
@@ -685,6 +751,8 @@ const wrongEntries = computed(() => {
   color: #a5f3fc;
   cursor: grab;
   user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
   transition: all .15s;
 }
 .code-block.dragging { background: rgba(74,144,217,.3); border: 1px solid #4a90d9; }
@@ -713,6 +781,7 @@ const wrongEntries = computed(() => {
   transition: all .2s;
   min-height: 42px;
   cursor: default;
+  touch-action: manipulation;
 }
 .drop-slot.filled { border-color: rgba(255,255,255,.3); background: rgba(255,255,255,.04); cursor: pointer; }
 .drop-slot.correct { border-color: #22c55e; background: rgba(34,197,94,.08); }
@@ -969,5 +1038,66 @@ const wrongEntries = computed(() => {
 @keyframes tutorialBounceLeft {
   0%, 100% { transform: translateX(0); }
   50% { transform: translateX(-8px); }
+}
+
+/* iPad / tablet */
+@media (max-width: 1024px) {
+  .header { flex-wrap: wrap; gap: 6px; }
+  .header-right { flex-wrap: wrap; gap: 8px; font-size: 11px; }
+
+  .game-layout {
+    flex-direction: column;
+  }
+  .game-left { flex: none; }
+  .game-right { flex: none; }
+
+  .ship-area { height: 180px; }
+
+  .game-columns { min-height: 220px; }
+
+  .code-block { font-size: 11px; padding: 6px 8px; }
+  .drop-slot { padding: 6px 8px; min-height: 38px; }
+
+  .captain-msg { font-size: 12px; }
+  .tutorial-card { max-width: 90vw; padding: 24px 20px; }
+}
+
+@media (max-width: 768px) {
+  .header-title { font-size: 14px; }
+  .game-columns { flex-direction: column; }
+  .drag-arrow-col {
+    width: auto;
+    height: 28px;
+    border-left: none;
+    border-right: none;
+    border-top: 1px solid rgba(255,255,255,.06);
+    border-bottom: 1px solid rgba(255,255,255,.06);
+  }
+  .drag-arrow { transform: rotate(90deg); }
+  .drag-arrow.active { animation: arrowPulseDown .8s ease-in-out infinite; }
+  .action-row { justify-content: center; }
+}
+@keyframes arrowPulseDown {
+  0%, 100% { transform: rotate(90deg) translateX(0); opacity: .6; }
+  50% { transform: rotate(90deg) translateX(4px); opacity: 1; }
+}
+</style>
+
+<style>
+/* Touch drag clone — must be unscoped since it's appended to body */
+.touch-clone {
+  position: fixed;
+  z-index: 9999;
+  pointer-events: none;
+  opacity: .85;
+  transform: scale(1.05);
+  background: rgba(74,144,217,.3);
+  border: 1px solid #4a90d9;
+  border-radius: 6px;
+  padding: 7px 10px;
+  font-family: monospace;
+  font-size: 12px;
+  color: #a5f3fc;
+  box-shadow: 0 4px 20px rgba(74,144,217,.3);
 }
 </style>
