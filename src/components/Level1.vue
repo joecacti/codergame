@@ -15,7 +15,7 @@ const props = defineProps({
 })
 const emit = defineEmits(['complete', 'admin'])
 
-const { click: sClick, correct: sCorrect, wrong: sWrong, drop: sDrop, badge: sBadge, splash: sSplash, launch: sLaunch, muted, toggleMute } = useSound()
+const { click: sClick, correct: sCorrect, wrong: sWrong, drop: sDrop, badge: sBadge, splash: sSplash, launch: sLaunch, muted, toggleMute, voiceMightyVessel, voiceShark, voiceKilledUs } = useSound()
 const { xp, rank, xpProgress, floats, awardCorrectDrop, awardFirstTry, awardLevelComplete, spendHint } = useProgress()
 
 // Tutorial state
@@ -262,6 +262,7 @@ function handleDrop(slot) {
     const hasShip = Object.values(slots.value).some((v, i) => v !== null && v !== block) || built.value.hull
     if (hasShip) {
       sSplash()
+      voiceKilledUs()
       miniSink.value = 1
       setTimeout(() => { miniSink.value = 2; msg.value = "She's cracking apart! 💥" }, 1000)
       setTimeout(() => { miniSink.value = 3; msg.value = "She's going down! 🫧" }, 2000)
@@ -281,8 +282,8 @@ function handleDrop(slot) {
         toolbox.value.push(slots.value[slot])
         slots.value[slot] = null
         wrongSlot.value = null
-        msg.value = 'Not right! Try another block, ' + props.initials + '!'
-      }, 1500)
+        msg.value = 'Not quite, ' + props.initials + '! Read the hint above and try a different block.'
+      }, 3500)
     }
   }
 }
@@ -310,6 +311,7 @@ function handleLaunch() {
     successState.value = true
     sCorrect()
     sBadge()
+    voiceMightyVessel()
     awardLevelComplete()
     fireConfetti(25, 30, 'golden-burst')
     fireConfetti(50, 20, 'golden-burst')
@@ -318,11 +320,12 @@ function handleLaunch() {
   } else {
     msg.value = 'Uh oh... 😰'
     sWrong()
+    voiceKilledUs()
     failState.value = 1
     setTimeout(() => { failState.value = 2; msg.value = 'CRACK! 💥' }, 1200)
     setTimeout(() => { failState.value = 3; msg.value = 'SINKING! 🫧' }, 2400)
     setTimeout(() => { failState.value = 4; msg.value = 'Captain overboard! 🏊' }, 3600)
-    setTimeout(() => { failState.value = 5; msg.value = 'Is that a FIN?! 😱' }, 5000)
+    setTimeout(() => { failState.value = 5; msg.value = 'Is that a FIN?! 😱'; voiceShark() }, 5000)
     setTimeout(() => { sSplash(); failState.value = 6; msg.value = "CHOMP! 🦈 Let's see what went wrong..." }, 6500)
   }
 }

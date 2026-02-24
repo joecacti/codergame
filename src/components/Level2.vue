@@ -14,7 +14,7 @@ const props = defineProps({
 })
 const emit = defineEmits(['admin', 'garyIsland', 'complete'])
 
-const { click: sClick, correct: sCorrect, wrong: sWrong, badge: sBadge, splash: sSplash, muted, toggleMute } = useSound()
+const { click: sClick, correct: sCorrect, wrong: sWrong, badge: sBadge, splash: sSplash, muted, toggleMute, voiceMightyPirate, voiceShark, voiceGary, voiceKilledUs } = useSound()
 const { xp, rank, xpProgress, floats, awardCorrectDodge, awardFirstTry, awardLevelComplete, spendHint } = useProgress()
 
 const score = ref(0)
@@ -117,6 +117,7 @@ function handleAnswer(idx) {
         phase.value = 'win'
         msg.value = "5 POINTS! You've mastered IF/ELSE, Captain " + props.initials + '! \u{1F3C6}'
         sBadge()
+        voiceMightyPirate()
         awardLevelComplete()
         fireConfetti(25, 30, 'golden-burst')
         fireConfetti(50, 20, 'golden-burst')
@@ -135,24 +136,26 @@ function handleAnswer(idx) {
     msg.value = 'BRACE FOR IMPACT! \u{1F4A5}'
     phase.value = 'crash'
     sWrong()
+    voiceKilledUs()
     streak.value = 0
     firstTryTracker.value[obsKey] = 'attempted'
     crashState.value = 1
-    setTimeout(() => { crashState.value = 2 }, 800)
-    setTimeout(() => { crashState.value = 3 }, 1600)
+    setTimeout(() => { crashState.value = 2 }, 1200)
+    setTimeout(() => { crashState.value = 3; msg.value = 'Read the explanation below — it\'ll help next time!' }, 2400)
     setTimeout(() => {
       crashState.value = 0
       explanation.value = ''
       phase.value = 'sailing'
       msg.value = 'Ship repaired! Let\'s try again... (' + score.value + '/5)'
       obstacleIdx.value++
-    }, 4500)
+    }, 8000)
   }
 }
 
 function startGaryCutscene() {
   phase.value = 'gary'
   garyState.value = 'appear'
+  voiceGary()
   msg.value = 'Wait... who\'s that on the horizon?'
   setTimeout(() => {
     garyState.value = 'talking'
@@ -195,6 +198,15 @@ const obstacleImage = computed(() => {
 })
 
 // Phase label for the status indicator
+// Wrong answer summary for crash panel
+const wrongAnswerSummary = computed(() => {
+  if (selected.value === null || selected.value === currentObs.value.correct) return null
+  return {
+    picked: currentObs.value.options[selected.value],
+    correct: currentObs.value.options[currentObs.value.correct],
+  }
+})
+
 const phaseLabel = computed(() => {
   if (phase.value === 'sailing') return 'Sailing...'
   if (phase.value === 'prediction') return 'Think First'
@@ -406,6 +418,10 @@ const phaseLabel = computed(() => {
         <div v-if="phase === 'crash'" class="panel-crash">
           <div class="panel-header crash-header">&#x1F4A5; Hit!</div>
           <div v-if="feedback" class="feedback fb-wrong">{{ feedback }}</div>
+          <div v-if="wrongAnswerSummary" class="wrong-summary">
+            <div class="wrong-summary-row"><span class="wrong-mark">&#x2717;</span> You picked: <code class="wrong-code">{{ wrongAnswerSummary.picked }}</code></div>
+            <div class="wrong-summary-row"><span class="correct-mark">&#x2713;</span> Correct answer: <code class="correct-code">{{ wrongAnswerSummary.correct }}</code></div>
+          </div>
           <div v-if="explanation" class="explanation">{{ explanation }}</div>
           <CodeExplainer
             :parts="currentObs.codeBreakdown || []"
@@ -916,6 +932,36 @@ const phaseLabel = computed(() => {
 .feedback { padding: 8px 16px; font-size: 13px; font-weight: 600; line-height: 1.5; }
 .fb-correct { color: #22c55e; }
 .fb-wrong { color: #ef4444; }
+
+.wrong-summary {
+  margin: 6px 16px 4px;
+  padding: 10px 14px;
+  background: rgba(239,68,68,.06);
+  border: 1px solid rgba(239,68,68,.15);
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.8;
+  animation: panelIn .3s ease;
+}
+.wrong-summary-row { display: flex; align-items: center; gap: 6px; }
+.wrong-mark { color: #ef4444; font-weight: 700; font-size: 14px; }
+.correct-mark { color: #22c55e; font-weight: 700; font-size: 14px; }
+.wrong-code {
+  background: rgba(239,68,68,.12);
+  color: #fca5a5;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-family: monospace;
+}
+.correct-code {
+  background: rgba(34,197,94,.12);
+  color: #86efac;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-family: monospace;
+}
 .explanation {
   margin: 4px 16px 8px;
   padding: 10px 12px;

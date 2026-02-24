@@ -62,18 +62,34 @@ function playNoise(duration, gain = 0.08) {
   source.start()
 }
 
+// --- Voice clips (pre-recorded .m4a files) ---
+const clipCache = {}
+function playClip(path, volume = 0.7) {
+  if (muted.value) return
+  if (clipCache[path]) {
+    const a = clipCache[path].cloneNode()
+    a.volume = volume
+    a.play().catch(() => {})
+    return
+  }
+  const a = new Audio(path)
+  a.volume = volume
+  clipCache[path] = a
+  a.play().catch(() => {})
+}
+
 // --- Background music system (per-screen synthesized tracks) ---
 let musicPlaying = false
 let currentTrack = null
 let musicNodes = []
 
 function stopMusic() {
+  musicPlaying = false
   musicNodes.forEach((n) => {
     try { n.stop?.() } catch {}
     try { n.disconnect?.() } catch {}
   })
   musicNodes = []
-  musicPlaying = false
   currentTrack = null
 }
 
@@ -100,7 +116,15 @@ function addNoise(c, master, filterFreq = 400, gain = 0.025) {
 
 function loopLine(c, master, notes, type, gain, detune = 0) {
   let t = c.currentTime + 0.1
+  const lineNodes = []
   function schedule() {
+    // Clean up finished oscillators to prevent unbounded growth
+    const now = c.currentTime
+    for (let i = lineNodes.length - 1; i >= 0; i--) {
+      if (lineNodes[i].endTime < now) {
+        lineNodes.splice(i, 1)
+      }
+    }
     for (const [freq, dur] of notes) {
       if (!musicPlaying) return
       if (freq === 0) { t += dur; continue }
@@ -118,6 +142,8 @@ function loopLine(c, master, notes, type, gain, detune = 0) {
       g.connect(master)
       osc.start(t)
       osc.stop(t + dur)
+      osc.endTime = t + dur
+      lineNodes.push(osc)
       musicNodes.push(osc)
       t += dur
     }
@@ -413,6 +439,14 @@ export function useSound() {
     },
 
     splash() { playNoise(0.4, 0.1) },
+
+    // Voice clips
+    voiceMightyPirate() { playClip('/sounds/Mighty Fine Pirate.m4a', 0.8) },
+    voiceMightyVessel() { playClip('/sounds/Mighty Fine Vessel.m4a', 0.8) },
+    voiceShark() { playClip('/sounds/Oh no Ive been eating by a shark.m4a', 0.8) },
+    voiceGary() { playClip('/sounds/Devry.m4a', 0.8) },
+    voiceIntro() { playClip('/sounds/Intro.m4a', 0.8) },
+    voiceKilledUs() { playClip('/sounds/you killed us all.m4a', 0.8) },
 
     launch() {
       if (muted.value) return

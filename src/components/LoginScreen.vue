@@ -5,15 +5,20 @@ import { useProgress } from '../composables/useProgress.js'
 
 const emit = defineEmits(['login', 'admin'])
 
-const { click: sClick, launch: sLaunch, startMusic } = useSound()
+const { click: sClick, launch: sLaunch, startMusic, voiceIntro } = useSound()
 
-onMounted(() => startMusic('login'))
+onMounted(() => { startMusic('login'); voiceIntro() })
 const { xp, rank } = useProgress()
 
 const hasProgress = computed(() => xp.value > 0)
 
+const initialsInput = ref(null)
 const val = ref('')
 const err = ref('')
+
+function focusInput() {
+  initialsInput.value?.focus()
+}
 
 function handleInput(e) {
   val.value = e.target.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3)
@@ -47,8 +52,16 @@ function handleLogin() {
       <div class="login-subtitle">The First Byte</div>
       <div class="login-label">Enter your initials, Captain:</div>
       <input
+        ref="initialsInput"
+        type="text"
+        inputmode="text"
+        autocapitalize="characters"
+        autocomplete="off"
+        autocorrect="off"
+        spellcheck="false"
         :value="val"
         @input="handleInput"
+        @touchend.prevent="focusInput"
         placeholder="e.g. AJ"
         maxlength="3"
         class="login-input"
@@ -61,6 +74,7 @@ function handleLogin() {
       </div>
       <button
         @click="handleLogin"
+        @touchend.prevent="handleLogin"
         class="sail-btn"
         :class="{ active: val.length >= 2 }"
       >⛵ Set Sail!</button>
@@ -159,6 +173,12 @@ function handleLogin() {
   font-family: Georgia, serif;
   outline: none;
   box-sizing: border-box;
+  /* Ensure touch/keyboard works on iPad/tablets */
+  -webkit-user-select: text;
+  user-select: text;
+  touch-action: manipulation;
+  -webkit-appearance: none;
+  appearance: none;
 }
 .login-input.input-error { border-color: #ef4444; }
 .error-text { color: #ef4444; font-size: 12px; margin-top: 6px; }

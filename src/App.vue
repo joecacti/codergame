@@ -6,11 +6,26 @@ import Level2 from './components/Level2.vue'
 import Level3 from './components/Level3.vue'
 import AdminDashboard from './components/AdminDashboard.vue'
 import IslandOfGary from './components/IslandOfGary.vue'
+import SettingsMenu from './components/SettingsMenu.vue'
 import { useSound } from './composables/useSound.js'
+import { useProgress } from './composables/useProgress.js'
 
 const screen = ref('login')
 const playerInitials = ref('')
+const levelKey = ref(0)
 const { startMusic, stopMusic } = useSound()
+const { resetProgress } = useProgress()
+
+function handleRestartLevel() {
+  levelKey.value++
+}
+
+function handleStartOver() {
+  resetProgress()
+  playerInitials.value = ''
+  stopMusic()
+  screen.value = 'login'
+}
 
 function handleLogin(initials) {
   playerInitials.value = initials
@@ -39,12 +54,14 @@ function adminBack() {
     />
     <Level1
       v-else-if="screen === 'level1'"
+      :key="levelKey"
       :initials="playerInitials"
       @complete="screen = 'level2'; startMusic('level2')"
       @admin="goAdmin"
     />
     <Level2
       v-else-if="screen === 'level2'"
+      :key="levelKey"
       :initials="playerInitials"
       @complete="screen = 'level3'; startMusic('level3')"
       @admin="goAdmin"
@@ -52,6 +69,7 @@ function adminBack() {
     />
     <Level3
       v-else-if="screen === 'level3'"
+      :key="levelKey"
       :initials="playerInitials"
       @admin="goAdmin"
       @gary-island="screen = 'garyIsland'; startMusic('garyIsland')"
@@ -65,6 +83,11 @@ function adminBack() {
       v-else-if="screen === 'admin'"
       :current-player="playerInitials ? { initials: playerInitials, level: 1, badges: 0, time: '--:--' } : null"
       @back="adminBack"
+    />
+    <SettingsMenu
+      :current-screen="screen"
+      @restart-level="handleRestartLevel"
+      @start-over="handleStartOver"
     />
   </div>
 </template>

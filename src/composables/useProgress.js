@@ -58,6 +58,11 @@ function awardFirstTry() { addXp(5, '+5 BONUS') }
 function awardLevelComplete() { addXp(50, '+50 XP Level Complete!') }
 function spendHint() { if (xp.value >= 5) { xp.value -= 5 } }
 
+function resetProgress() {
+  xp.value = 0
+  save()
+}
+
 export function useProgress() {
   return {
     xp,
@@ -72,6 +77,7 @@ export function useProgress() {
     awardFirstTry,
     awardLevelComplete,
     spendHint,
+    resetProgress,
     RANKS,
   }
 }
