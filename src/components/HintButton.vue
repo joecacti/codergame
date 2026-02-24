@@ -4,6 +4,7 @@ import { ref, watch, computed } from 'vue'
 const props = defineProps({
   hints: { type: Array, default: () => [] },
   xp: { type: Number, default: 0 },
+  freeHint: { type: Boolean, default: false },
 })
 
 const emit = defineEmits(['useHint'])
@@ -30,6 +31,13 @@ function requestHint() {
   showHint.value = true
   emit('useHint')
 }
+
+watch(() => props.freeHint, (val) => {
+  if (val && !allUsed.value) {
+    hintLevel.value++
+    showHint.value = true
+  }
+})
 </script>
 
 <template>

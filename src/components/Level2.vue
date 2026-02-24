@@ -33,6 +33,8 @@ const streak = ref(0)
 const bestStreak = ref(0)
 const firstTryTracker = ref({})
 const predictionAnswer = ref(null)
+const consecutiveWrong = ref(0)
+const lifeRaftUsed = ref(false)
 const garyState = ref('hidden') // hidden, appear, talking, running
 let confettiId = 0
 let timerRef = null
@@ -92,6 +94,8 @@ function handleAnswer(idx) {
     phase.value = 'dodging'
     sCorrect()
     awardCorrectDodge()
+    consecutiveWrong.value = 0
+    lifeRaftUsed.value = false
 
     streak.value++
     if (streak.value > bestStreak.value) bestStreak.value = streak.value
@@ -137,6 +141,7 @@ function handleAnswer(idx) {
     phase.value = 'crash'
     sWrong()
     voiceKilledUs()
+    consecutiveWrong.value++
     streak.value = 0
     firstTryTracker.value[obsKey] = 'attempted'
     crashState.value = 1
@@ -206,6 +211,13 @@ const wrongAnswerSummary = computed(() => {
     correct: currentObs.value.options[currentObs.value.correct],
   }
 })
+
+const showLifeRaft = computed(() => consecutiveWrong.value >= 2 && !lifeRaftUsed.value && selected.value === null && phase.value === 'challenge')
+
+function useLifeRaft() {
+  lifeRaftUsed.value = true
+  voiceGary()
+}
 
 const phaseLabel = computed(() => {
   if (phase.value === 'sailing') return 'Sailing...'
@@ -394,13 +406,18 @@ const phaseLabel = computed(() => {
           <div v-if="feedback" class="feedback" :class="{ 'fb-correct': selected === currentObs.correct, 'fb-wrong': selected !== currentObs.correct }">{{ feedback }}</div>
           <div v-if="explanation" class="explanation">{{ explanation }}</div>
 
-          <!-- Hint Button -->
-          <HintButton
-            v-if="selected === null"
-            :hints="currentObs.hints || []"
-            :xp="xp"
-            @use-hint="handleHint"
-          />
+          <!-- Hint Button + Life Raft -->
+          <div v-if="selected === null" class="hint-liferaft-row">
+            <HintButton
+              :hints="currentObs.hints || []"
+              :xp="xp"
+              :free-hint="lifeRaftUsed"
+              @use-hint="handleHint"
+            />
+            <button v-if="showLifeRaft" class="life-raft-btn" @click="useLifeRaft">
+              &#x1F6DF; Life Raft! Free Hint
+            </button>
+          </div>
         </div>
 
         <!-- Dodging result -->
@@ -1217,6 +1234,27 @@ const phaseLabel = computed(() => {
 }
 .gary-lb-btn:hover {
   background: rgba(255,255,255,.12);
+}
+
+/* Life Raft */
+.hint-liferaft-row { padding: 0 16px 8px; display: flex; flex-direction: column; gap: 6px; }
+.life-raft-btn {
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 2px solid #fbbf24;
+  background: rgba(251,191,36,.12);
+  color: #fbbf24;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: Georgia, serif;
+  transition: all .2s;
+  animation: lifeRaftPulse 1.5s ease-in-out infinite;
+}
+.life-raft-btn:hover { background: rgba(251,191,36,.25); }
+@keyframes lifeRaftPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(251,191,36,.4); }
+  50% { box-shadow: 0 0 0 6px rgba(251,191,36,0); }
 }
 
 /* iPad / tablet */

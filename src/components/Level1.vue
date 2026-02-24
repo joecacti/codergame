@@ -15,7 +15,7 @@ const props = defineProps({
 })
 const emit = defineEmits(['complete', 'admin'])
 
-const { click: sClick, correct: sCorrect, wrong: sWrong, drop: sDrop, badge: sBadge, splash: sSplash, launch: sLaunch, muted, toggleMute, voiceMightyVessel, voiceShark, voiceKilledUs } = useSound()
+const { click: sClick, correct: sCorrect, wrong: sWrong, drop: sDrop, badge: sBadge, splash: sSplash, launch: sLaunch, muted, toggleMute, voiceMightyVessel, voiceShark, voiceGary, voiceKilledUs } = useSound()
 const { xp, rank, xpProgress, floats, awardCorrectDrop, awardFirstTry, awardLevelComplete, spendHint } = useProgress()
 
 // Tutorial state
@@ -103,6 +103,8 @@ const launched = ref(false)
 const showConceptCard = ref(false)
 const lastPlacedSlot = ref(null)
 const firstTrySlots = ref({ hull: true, sails: true, crew: true, anchor: true })
+const consecutiveWrong = ref(0)
+const lifeRaftUsed = ref(false)
 let confettiId = 0
 
 const built = computed(() => ({
@@ -248,6 +250,8 @@ function handleDrop(slot) {
     msg.value = GOOD_MESSAGES[slot]
     sCorrect()
     awardCorrectDrop()
+    consecutiveWrong.value = 0
+    lifeRaftUsed.value = false
     if (firstTrySlots.value[slot]) {
       awardFirstTry()
       fireConfetti(50, 40, 'sparkle')
@@ -257,6 +261,7 @@ function handleDrop(slot) {
   } else {
     msg.value = WRONG_EXPLANATIONS[slot] || FUNNY_MESSAGES[slot]
     sWrong()
+    consecutiveWrong.value++
     wrongSlot.value = slot
     firstTrySlots.value[slot] = false
     const hasShip = Object.values(slots.value).some((v, i) => v !== null && v !== block) || built.value.hull
@@ -340,6 +345,13 @@ function handleReset() {
   confettiList.value = []; lastPlacedSlot.value = null
   showConceptCard.value = false
   msg.value = 'Back in the water... BUILD FASTER, ' + props.initials + '!'
+}
+
+const showLifeRaft = computed(() => consecutiveWrong.value >= 2 && !lifeRaftUsed.value && !launched.value && !miniSink.value)
+
+function useLifeRaft() {
+  lifeRaftUsed.value = true
+  voiceGary()
 }
 
 function handleHint() {
@@ -499,7 +511,11 @@ const wrongEntries = computed(() => {
 
         <!-- Hint + Launch row -->
         <div class="action-row">
-          <div class="hint-row"><img src="/images/pirate-kit/bottle.png" alt="" class="hint-bottle" /><HintButton :hints="currentHints" :xp="xp" @use-hint="handleHint" /></div>
+          <div class="hint-row">
+            <img src="/images/pirate-kit/bottle.png" alt="" class="hint-bottle" />
+            <HintButton :hints="currentHints" :xp="xp" :free-hint="lifeRaftUsed" @use-hint="handleHint" />
+            <button v-if="showLifeRaft" class="life-raft-btn" @click="useLifeRaft">&#x1F6DF; Life Raft! Free Hint</button>
+          </div>
           <button v-if="!launched && !miniSink" @click="handleLaunch" class="launch-btn" :class="{ ready: filledCount === 4 }">⛵ Launch Ship!</button>
           <template v-if="launched">
             <button @click="handleReset" class="reset-btn">🔄 Try Again</button>
@@ -765,7 +781,25 @@ const wrongEntries = computed(() => {
 
 .label-icon { width: 18px; height: 18px; vertical-align: middle; margin-right: 4px; filter: drop-shadow(0 1px 2px rgba(0,0,0,.4)); }
 .btn-icon { width: 22px; height: 22px; vertical-align: middle; margin-right: 4px; filter: drop-shadow(0 1px 3px rgba(0,0,0,.4)); }
-.hint-row { display: flex; align-items: center; gap: 6px; }
+.hint-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.life-raft-btn {
+  padding: 6px 14px;
+  border-radius: 6px;
+  border: 2px solid #fbbf24;
+  background: rgba(251,191,36,.12);
+  color: #fbbf24;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: Georgia, serif;
+  transition: all .2s;
+  animation: lifeRaftPulse 1.5s ease-in-out infinite;
+}
+.life-raft-btn:hover { background: rgba(251,191,36,.25); }
+@keyframes lifeRaftPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(251,191,36,.4); }
+  50% { box-shadow: 0 0 0 6px rgba(251,191,36,0); }
+}
 .hint-bottle { width: 28px; filter: drop-shadow(0 2px 4px rgba(0,0,0,.4)); opacity: .7; }
 .deco-barrel-l1 { position: absolute; bottom: 4px; right: 6px; width: 36px; opacity: .2; pointer-events: none; filter: drop-shadow(0 2px 6px rgba(0,0,0,.5)); z-index: 0; }
 .success-chest { width: 64px; filter: drop-shadow(0 4px 12px rgba(251,191,36,.3)); margin-bottom: 6px; }
